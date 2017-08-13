@@ -27,24 +27,24 @@ convert(::Type{SerdNode}, node::Resource) = SerdNode(node.uri, SERD_URI)
 convert(::Type{SerdNode}, node::Blank) = SerdNode(node.name, SERD_BLANK)
 
 convert(::Type{SerdStatement}, stmt::Triple) =
-  convert_to_serd(SERD_NODE_NULL, stmt.subject, stmt.predicate, stmt.object)
+  convert_to_serd(Nullable{Node}(), stmt.subject, stmt.predicate, stmt.object)
 convert(::Type{SerdStatement}, stmt::Quad) =
   convert_to_serd(stmt.graph, stmt.subject, stmt.predicate, stmt.object)
   
 function convert_to_serd(graph, subject, predicate, object)
-  graph = convert(SerdNode, graph)
+  graph = isnull(graph) ? nothing : convert(SerdNode, graph)
   subject = convert(SerdNode, subject)
   predicate = convert(SerdNode, predicate)
   if isa(object, Literal)
     object_datatype = isa(object.value, AbstractString) ? 
-      SERD_NODE_NULL : SerdNode(rdf_datatype(typeof(object.value)), SERD_URI)
+      nothing : SerdNode(rdf_datatype(typeof(object.value)), SERD_URI)
     object_lang = isempty(object.language) ?
-      SERD_NODE_NULL : SerdNode(object.language, SERD_LITERAL)
+      nothing : SerdNode(object.language, SERD_LITERAL)
     object = SerdNode(string(object.value), SERD_LITERAL)
   else
     object = convert(SerdNode, object)
-    object_datatype = SERD_NODE_NULL
-    object_lang = SERD_NODE_NULL
+    object_datatype = nothing
+    object_lang = nothing
   end
   SerdStatement(0, graph, subject, predicate, object, object_datatype, object_lang)
 end
@@ -74,18 +74,20 @@ function convert(::Type{Statement}, stmt::SerdStatement)
   subject = convert(Node, stmt.subject)
   predicate = convert(Node, stmt.predicate)
   object = if stmt.object.typ == SERD_LITERAL
-    if stmt.object_datatype.typ == SERD_NOTHING
-      Literal(stmt.object.value, stmt.object_lang.value)
+    if isnull(stmt.object_datatype)
+      lang = isnull(stmt.object_lang) ? "" : get(stmt.object_lang).value
+      Literal(stmt.object.value, lang)
     else
-      Literal(parse(julia_datatype(stmt.object_datatype.value), stmt.object.value))
+      typ = julia_datatype(get(stmt.object_datatype).value)
+      Literal(parse(typ, stmt.object.value))
     end
   else
     convert(Node, stmt.object)
   end
-  if stmt.graph.typ == SERD_NOTHING
+  if isnull(stmt.graph)
     Triple(subject, predicate, object)
   else
-    Quad(subject, predicate, object, convert(Node, stmt.graph))
+    Quad(subject, predicate, object, convert(Node, get(stmt.graph)))
   end
 end
 

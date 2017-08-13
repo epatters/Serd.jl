@@ -13,12 +13,12 @@ using Serd, Serd.CSerd
 triple = Triple(Resource("bob"), Resource("rdf:type"), Resource("Person"))
 stmt = SerdStatement(
   0,
-  SERD_NODE_NULL,
+  nothing,
   SerdNode("bob", SERD_URI),
   SerdNode("rdf:type", SERD_URI),
   SerdNode("Person", SERD_URI),
-  SERD_NODE_NULL,
-  SERD_NODE_NULL,
+  nothing,
+  nothing,
 )
 @test convert(SerdStatement, triple) == stmt
 @test convert(Statement, stmt) == triple
@@ -26,12 +26,12 @@ stmt = SerdStatement(
 triple = Triple(Resource("bob"), Resource("name"), Literal("Bob"))
 stmt = SerdStatement(
   0,
-  SERD_NODE_NULL,
+  nothing,
   SerdNode("bob", SERD_URI),
   SerdNode("name", SERD_URI),
   SerdNode("Bob", SERD_LITERAL),
-  SERD_NODE_NULL,
-  SERD_NODE_NULL,
+  nothing,
+  nothing,
 )
 @test convert(SerdStatement, triple) == stmt
 @test convert(Statement, stmt) == triple
@@ -39,12 +39,12 @@ stmt = SerdStatement(
 triple = Triple(Resource("bob"), Resource("age"), Literal(50))
 stmt = SerdStatement(
  0,
- SERD_NODE_NULL,
+ nothing,
  SerdNode("bob", SERD_URI),
  SerdNode("age", SERD_URI),
  SerdNode("50", SERD_LITERAL),
  SerdNode(Serd.XSD_INTEGER, SERD_URI),
- SERD_NODE_NULL,
+ nothing,
 )
 @test convert(SerdStatement, triple) == stmt
 @test convert(Statement, stmt) == triple
@@ -57,7 +57,7 @@ stmt = SerdStatement(
  SerdNode("friendly", SERD_URI),
  SerdNode("true", SERD_LITERAL),
  SerdNode(Serd.XSD_BOOLEAN, SERD_URI),
- SERD_NODE_NULL,
+ nothing,
 )
 @test convert(SerdStatement, quad) == stmt
 @test convert(Statement, stmt) == quad

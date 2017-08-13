@@ -1,8 +1,8 @@
 """ Low-level wrapper of C library Serd.
 """
 module CSerd
-export SerdException, SerdNode, SERD_NODE_NULL, SerdStatement,
-  SerdStatementFlags, SerdReader, SerdWriter,
+export SerdException, SerdNode, SerdStatement, SerdStatementFlags,
+  SerdReader, SerdWriter,
   serd_reader_new, serd_reader_read_file, serd_reader_read_string,
   serd_reader_free
   
@@ -80,16 +80,14 @@ end
   typ::SerdType
 end
 
-const SERD_NODE_NULL = SerdNode("", SERD_NOTHING)
-
 @auto_hash_equals struct SerdStatement
   flags::SerdStatementFlags
-  graph::SerdNode
+  graph::Nullable{SerdNode}
   subject::SerdNode
   predicate::SerdNode
   object::SerdNode
-  object_datatype::SerdNode
-  object_lang::SerdNode
+  object_datatype::Nullable{SerdNode}
+  object_lang::Nullable{SerdNode}
 end
 
 mutable struct SerdReader
@@ -129,18 +127,18 @@ function check_status(status)
   end
 end
 
-function unsafe_serd_node(ptr::Ptr{CSerdNode})::SerdNode
+function unsafe_serd_node(ptr::Ptr{CSerdNode})::Nullable{SerdNode}
   if ptr == C_NULL
-    SERD_NODE_NULL
+    Nullable{SerdNode}()
   else
     typ = unsafe_load(Ptr{Cint}(ptr + fieldoffset(CSerdNode,5)))
     if typ == SERD_NOTHING
-      SERD_NODE_NULL
+      Nullable{SerdNode}()
     else
       n_bytes = unsafe_load(Ptr{Csize_t}(ptr + fieldoffset(CSerdNode,2)))
       value_ptr = unsafe_load(Ptr{Ptr{UInt8}}(ptr))
       value = unsafe_string(value_ptr, n_bytes)
-      SerdNode(value, SerdType(typ))
+      Nullable(SerdNode(value, SerdType(typ)))
     end
   end
 end
@@ -151,13 +149,16 @@ function serd_reader_new(syntax::SerdSyntax, base_sink, prefix_sink,
                          statement_sink, end_sink)
 
   function serd_base_sink(handle::Ptr{Void}, uri::Ptr{CSerdNode})
-    serd_status(base_sink(unsafe_serd_node(uri)))
+    serd_status(base_sink(get(unsafe_serd_node(uri))))
   end
   serd_base_sink_ptr = base_sink == nothing ? C_NULL :
     cfunction(serd_base_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}))
   
   function serd_prefix_sink(handle::Ptr{Void}, name::Ptr{CSerdNode}, uri::Ptr{CSerdNode})
-    serd_status(prefix_sink(unsafe_serd_node(name), unsafe_serd_node(uri)))
+    serd_status(prefix_sink(
+      get(unsafe_serd_node(name)),
+      get(unsafe_serd_node(uri))
+    ))
   end
   serd_prefix_sink_ptr = prefix_sink == nothing ? C_NULL :
     cfunction(serd_prefix_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}, Ptr{CSerdNode}))
@@ -170,9 +171,9 @@ function serd_reader_new(syntax::SerdSyntax, base_sink, prefix_sink,
     serd_status(statement_sink(SerdStatement(
       flags,
       unsafe_serd_node(graph),
-      unsafe_serd_node(subject),
-      unsafe_serd_node(predicate),
-      unsafe_serd_node(object),
+      get(unsafe_serd_node(subject)),
+      get(unsafe_serd_node(predicate)),
+      get(unsafe_serd_node(object)),
       unsafe_serd_node(object_datatype),
       unsafe_serd_node(object_lang),
     )))
@@ -186,7 +187,7 @@ function serd_reader_new(syntax::SerdSyntax, base_sink, prefix_sink,
     )
   
   function serd_end_sink(handle::Ptr{Void}, node::Ptr{CSerdNode})
-    serd_status(end_sink(unsafe_serd_node(node)))
+    serd_status(end_sink(get(unsafe_serd_node(node))))
   end
   serd_end_sink_ptr = end_sink == nothing ? C_NULL :
     cfunction(serd_end_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}))
