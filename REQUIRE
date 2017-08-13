@@ -1,0 +1,7 @@
+julia 0.6
+
+BinDeps
+@osx Homebrew
+
+AutoHashEquals
+Reexport
