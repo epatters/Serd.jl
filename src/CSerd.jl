@@ -2,9 +2,10 @@
 """
 module CSerd
 export SerdException, SerdNode, SerdStatement, SerdStatementFlags,
-  SerdReader, SerdWriter,
-  serd_reader_new, serd_reader_read_file, serd_reader_read_string,
-  serd_reader_free
+  SerdReader, SerdWriter, serd_reader_new, serd_reader_free,
+  serd_reader_set_error_sink, serd_reader_set_strict,
+  serd_reader_add_blank_prefix, serd_reader_set_default_graph,
+  serd_reader_read_file, serd_reader_read_string
   
 # Reference to Serd library.
 include("../deps/deps.jl")
@@ -115,16 +116,12 @@ struct CSerdError
   args::Ptr{Void} # va_list *
 end
 
-# Read
+# Node
 ######
 
-serd_status(status) = Cint(isa(status, SerdStatus) ? status : SERD_SUCCESS)
-
-function check_status(status)
-  status = SerdStatus(status)
-  if status != SERD_SUCCESS
-    throw(SerdException(status))
-  end
+function c_serd_node(node::SerdNode)::CSerdNode
+  ccall((:serd_node_from_string, serd), CSerdNode, (Cint, Cstring),
+        Cint(node.typ), node.value)
 end
 
 function unsafe_serd_node(ptr::Ptr{CSerdNode})::Nullable{SerdNode}
@@ -142,6 +139,18 @@ function unsafe_serd_node(ptr::Ptr{CSerdNode})::Nullable{SerdNode}
     end
   end
 end
+
+serd_status(status) = Cint(isa(status, SerdStatus) ? status : SERD_SUCCESS)
+
+function check_status(status)
+  status = SerdStatus(status)
+  if status != SERD_SUCCESS
+    throw(SerdException(status))
+  end
+end
+
+# Reader
+########
 
 """ Create a new RDF reader.
 """
@@ -233,6 +242,29 @@ function serd_reader_set_strict(reader::SerdReader, strict::Bool)
         reader.ptr, strict)
 end
 
+""" Set a prefix to be added to all blank node identifiers.
+
+This is useful when multiple files are to be parsed into the same output
+(e.g. a store, or other files). Since Serd preserves blank node IDs, this could
+cause conflicts where two non-equivalent blank nodes are merged, resulting in
+corrupt data. By setting a unique blank node prefix for each parsed file, this
+can be avoided, while preserving blank node names.
+"""
+function serd_reader_add_blank_prefix(reader::SerdReader, prefix::String)
+  ccall((:serd_reader_add_blank_prefix, serd), Void, (Ptr{Void}, Cstring),
+        reader.ptr, prefix)
+end
+
+""" Set the URI of the default graph.
+
+If this is set, the reader will emit quads with the graph set to the given node
+for any statements that are not in a named graph.
+"""
+function serd_reader_set_default_graph(reader::SerdReader, graph::SerdNode)
+  ccall((:serd_reader_set_default_graph, serd), Void, (Ptr{Void}, Ref{CSerdNode}),
+        reader.ptr, c_serd_node(graph))
+end
+
 """ Read a file at a given URI.
 """
 function serd_reader_read_file(reader::SerdReader, uri::String)
@@ -261,8 +293,10 @@ This function will be called automatically when the Julia Serd reader is
 garbage collected.
 """
 function serd_reader_free(reader::SerdReader)
-  ccall((:serd_reader_free, serd), Void, (Ptr{Void},), reader.ptr)
-  reader.ptr = C_NULL
+  if reader.ptr != C_NULL
+    ccall((:serd_reader_free, serd), Void, (Ptr{Void},), reader.ptr)
+    reader.ptr = C_NULL
+  end
 end
 
 # Write
