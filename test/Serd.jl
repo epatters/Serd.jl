@@ -3,11 +3,11 @@ using Base.Test
 using Serd, Serd.CSerd
 
 # Node conversion
-@test convert(SerdNode, Resource("rdf:type")) == SerdNode("rdf:type", SERD_URI)
-@test convert(Node, SerdNode("rdf:type", SERD_URI)) == Resource("rdf:type")
+@test to_serd(Resource("rdf:type")) == SerdNode("rdf:type", SERD_URI)
+@test from_serd(SerdNode("rdf:type", SERD_URI)) == Resource("rdf:type")
 
-@test convert(SerdNode, Blank("?x")) == SerdNode("?x", SERD_BLANK)
-@test convert(Node, SerdNode("?x", SERD_BLANK)) == Blank("?x")
+@test to_serd(Blank("?x")) == SerdNode("?x", SERD_BLANK)
+@test from_serd(SerdNode("?x", SERD_BLANK)) == Blank("?x")
 
 # Statement conversion
 triple = Triple(Resource("bob"), Resource("rdf:type"), Resource("Person"))
@@ -20,8 +20,8 @@ stmt = SerdStatement(
   nothing,
   nothing,
 )
-@test convert(SerdStatement, triple) == stmt
-@test convert(Statement, stmt) == triple
+@test to_serd(triple) == stmt
+@test from_serd(stmt) == triple
 
 triple = Triple(Resource("bob"), Resource("name"), Literal("Bob"))
 stmt = SerdStatement(
@@ -33,8 +33,8 @@ stmt = SerdStatement(
   nothing,
   nothing,
 )
-@test convert(SerdStatement, triple) == stmt
-@test convert(Statement, stmt) == triple
+@test to_serd(triple) == stmt
+@test from_serd(stmt) == triple
 
 triple = Triple(Resource("bob"), Resource("age"), Literal(50))
 stmt = SerdStatement(
@@ -46,8 +46,8 @@ stmt = SerdStatement(
  SerdNode(Serd.XSD_INTEGER, SERD_URI),
  nothing,
 )
-@test convert(SerdStatement, triple) == stmt
-@test convert(Statement, stmt) == triple
+@test to_serd(triple) == stmt
+@test from_serd(stmt) == triple
 
 quad = Quad(Resource("bob"), Resource("friendly"), Literal(true), Resource("people"))
 stmt = SerdStatement(
@@ -59,7 +59,7 @@ stmt = SerdStatement(
  SerdNode(Serd.XSD_BOOLEAN, SERD_URI),
  nothing,
 )
-@test convert(SerdStatement, quad) == stmt
-@test convert(Statement, stmt) == quad
+@test to_serd(quad) == stmt
+@test from_serd(stmt) == quad
 
 end

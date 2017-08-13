@@ -1,8 +1,8 @@
 """ High-level interface to C library Serd.
 """
 module Serd
+export to_serd, from_serd
 
-import Base: convert
 using Reexport
 
 include("CSerd.jl")
@@ -23,18 +23,18 @@ rdf_datatype(::Type{Bool}) = XSD_BOOLEAN
 rdf_datatype(::Type{T}) where T <: Integer = XSD_INTEGER
 rdf_datatype(::Type{T}) where T <: Real = XSD_DECIMAL
 
-convert(::Type{SerdNode}, node::Resource) = SerdNode(node.uri, SERD_URI)
-convert(::Type{SerdNode}, node::Blank) = SerdNode(node.name, SERD_BLANK)
-
-convert(::Type{SerdStatement}, stmt::Triple) =
-  convert_to_serd(Nullable{Node}(), stmt.subject, stmt.predicate, stmt.object)
-convert(::Type{SerdStatement}, stmt::Quad) =
-  convert_to_serd(stmt.graph, stmt.subject, stmt.predicate, stmt.object)
+to_serd(node::Resource) = SerdNode(node.uri, SERD_URI)
+to_serd(node::Blank) = SerdNode(node.name, SERD_BLANK)
+to_serd(stmt::Triple) = to_serd(
+  Nullable{Node}(), stmt.subject, stmt.predicate, stmt.object)
+to_serd(stmt::Quad) = to_serd(
+  Nullable(stmt.graph), stmt.subject, stmt.predicate, stmt.object)
   
-function convert_to_serd(graph, subject, predicate, object)
-  graph = isnull(graph) ? nothing : convert(SerdNode, graph)
-  subject = convert(SerdNode, subject)
-  predicate = convert(SerdNode, predicate)
+function to_serd(graph::Nullable{T} where T <: Node,
+                 subject::Node, predicate::Node, object::Node)
+  graph = isnull(graph) ? Nullable{SerdNode}() : to_serd(get(graph))
+  subject = to_serd(subject)
+  predicate = to_serd(predicate)
   if isa(object, Literal)
     object_datatype = isa(object.value, AbstractString) ? 
       nothing : SerdNode(rdf_datatype(typeof(object.value)), SERD_URI)
@@ -42,7 +42,7 @@ function convert_to_serd(graph, subject, predicate, object)
       nothing : SerdNode(object.language, SERD_LITERAL)
     object = SerdNode(string(object.value), SERD_LITERAL)
   else
-    object = convert(SerdNode, object)
+    object = to_serd(object)
     object_datatype = nothing
     object_lang = nothing
   end
@@ -60,7 +60,7 @@ const JULIA_TYPES = Dict{String,Type}(
 )
 julia_datatype(datatype::String) = JULIA_TYPES[datatype]
 
-function convert(::Type{Node}, node::SerdNode)
+function from_serd(node::SerdNode)::Node
   if node.typ == SERD_URI || node.typ == SERD_CURIE
     Resource(node.value)
   elseif node.typ == SERD_BLANK
@@ -70,24 +70,27 @@ function convert(::Type{Node}, node::SerdNode)
   end
 end
 
-function convert(::Type{Statement}, stmt::SerdStatement)
-  subject = convert(Node, stmt.subject)
-  predicate = convert(Node, stmt.predicate)
+function from_serd(stmt::SerdStatement)::Statement
+  subject = from_serd(stmt.subject)
+  predicate = from_serd(stmt.predicate)
   object = if stmt.object.typ == SERD_LITERAL
     if isnull(stmt.object_datatype)
-      lang = isnull(stmt.object_lang) ? "" : get(stmt.object_lang).value
-      Literal(stmt.object.value, lang)
+      if isnull(stmt.object_lang)
+        Literal(stmt.object.value)
+      else
+        Literal(stmt.object.value, get(stmt.object_lang).value)
+      end
     else
       typ = julia_datatype(get(stmt.object_datatype).value)
       Literal(parse(typ, stmt.object.value))
     end
   else
-    convert(Node, stmt.object)
+    from_serd(stmt.object)
   end
   if isnull(stmt.graph)
     Triple(subject, predicate, object)
   else
-    Quad(subject, predicate, object, convert(Node, get(stmt.graph)))
+    Quad(subject, predicate, object, from_serd(get(stmt.graph)))
   end
 end
 
