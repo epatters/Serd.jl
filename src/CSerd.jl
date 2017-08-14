@@ -97,6 +97,11 @@ end
 
 mutable struct SerdReader
   ptr::Ptr{Void}
+  base_sink::Nullable{Function}
+  prefix_sink::Nullable{Function}
+  statement_sink::Nullable{Function}
+  end_sink::Nullable{Function}
+  error_sink::Nullable{Function}
 end
 
 mutable struct SerdWriter
@@ -169,60 +174,65 @@ end
 """
 function serd_reader_new(syntax::SerdSyntax, base_sink, prefix_sink,
                          statement_sink, end_sink)::SerdReader
-
-  function serd_base_sink(handle::Ptr{Void}, uri::Ptr{CSerdNode})
-    serd_status(base_sink(get(unsafe_serd_node(uri))))
-  end
-  serd_base_sink_ptr = base_sink == nothing ? C_NULL :
-    cfunction(serd_base_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}))
+  serd_base_sink_ptr = cfunction(
+    serd_base_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}))
+  serd_prefix_sink_ptr = cfunction(
+    serd_prefix_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}, Ptr{CSerdNode}))  
+  serd_statement_sink_ptr = cfunction(
+    serd_statement_sink,
+    Cint,
+    (Ptr{Void}, Cint, Ptr{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode},
+     Ptr{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode}))
+  serd_end_sink_ptr = cfunction(
+    serd_end_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}))
   
-  function serd_prefix_sink(handle::Ptr{Void}, name::Ptr{CSerdNode}, uri::Ptr{CSerdNode})
-    serd_status(prefix_sink(
+  reader = SerdReader(
+    C_NULL, base_sink, prefix_sink, statement_sink, end_sink, nothing)
+  reader.ptr = ccall(
+    (:serd_reader_new, serd),
+    Ptr{Void},
+    (Cint, Any, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}),
+    syntax, reader, C_NULL, serd_base_sink_ptr, serd_prefix_sink_ptr,
+    serd_statement_sink_ptr, serd_end_sink_ptr)
+  finalizer(reader, serd_reader_free)
+  return reader
+end
+function serd_base_sink(handle::Ptr{Void}, uri::Ptr{CSerdNode})
+  reader = unsafe_pointer_to_objref(handle)::SerdReader
+  serd_status(if !isnull(reader.base_sink)
+    get(reader.base_sink)(get(unsafe_serd_node(uri)))
+  end)
+end
+function serd_prefix_sink(handle::Ptr{Void}, name::Ptr{CSerdNode}, uri::Ptr{CSerdNode})
+  reader = unsafe_pointer_to_objref(handle)::SerdReader
+  serd_status(if !isnull(reader.prefix_sink)
+    get(reader.prefix_sink)(
       get(unsafe_serd_node(name)),
-      get(unsafe_serd_node(uri))
-    ))
-  end
-  serd_prefix_sink_ptr = prefix_sink == nothing ? C_NULL :
-    cfunction(serd_prefix_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}, Ptr{CSerdNode}))
-  
-  function serd_statement_sink(
-      handle::Ptr{Void}, flags::Cint, graph::Ptr{CSerdNode},
-      subject::Ptr{CSerdNode}, predicate::Ptr{CSerdNode}, object::Ptr{CSerdNode},
-      object_datatype::Ptr{CSerdNode}, object_lang::Ptr{CSerdNode}
-    )
-    serd_status(statement_sink(SerdStatement(
+      get(unsafe_serd_node(uri)))
+  end)
+end
+function serd_statement_sink(
+    handle::Ptr{Void}, flags::Cint, graph::Ptr{CSerdNode},
+    subject::Ptr{CSerdNode}, predicate::Ptr{CSerdNode}, object::Ptr{CSerdNode},
+    object_datatype::Ptr{CSerdNode}, object_lang::Ptr{CSerdNode}
+  )
+  reader = unsafe_pointer_to_objref(handle)::SerdReader
+  serd_status(if !isnull(reader.statement_sink)
+    get(reader.statement_sink)(SerdStatement(
       flags,
       unsafe_serd_node(graph),
       get(unsafe_serd_node(subject)),
       get(unsafe_serd_node(predicate)),
       get(unsafe_serd_node(object)),
       unsafe_serd_node(object_datatype),
-      unsafe_serd_node(object_lang),
-    )))
-  end
-  serd_statement_sink_ptr = statement_sink == nothing ? C_NULL : 
-    cfunction(
-      serd_statement_sink,
-      Cint,
-      (Ptr{Void}, Cint, Ptr{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode},
-       Ptr{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode})
-    )
-  
-  function serd_end_sink(handle::Ptr{Void}, node::Ptr{CSerdNode})
-    serd_status(end_sink(get(unsafe_serd_node(node))))
-  end
-  serd_end_sink_ptr = end_sink == nothing ? C_NULL :
-    cfunction(serd_end_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}))
-  
-  reader_ptr = ccall(
-    (:serd_reader_new, serd),
-    Ptr{Void},
-    (Cint, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}),
-    syntax, C_NULL, C_NULL, serd_base_sink_ptr, serd_prefix_sink_ptr,
-    serd_statement_sink_ptr, serd_end_sink_ptr)
-  reader = SerdReader(reader_ptr)
-  finalizer(reader, serd_reader_free)
-  return reader
+      unsafe_serd_node(object_lang)))
+  end)
+end
+function serd_end_sink(handle::Ptr{Void}, node::Ptr{CSerdNode})
+  reader = unsafe_pointer_to_objref(handle)::SerdReader
+  serd_status(if !isnull(reader.end_sink)
+    get(reader.end_sink)(get(unsafe_serd_node(node)))
+  end)
 end
 
 """ Set a function to be called when errors occur during reading.
@@ -230,18 +240,22 @@ end
 If no error function is set, errors are printed to stderr in GCC style.
 """
 function serd_reader_set_error_sink(reader::SerdReader, error_sink)
-  function serd_error_sink(handle::Ptr{Void}, error::Ptr{CSerdError})
-    # FIXME: Include error information besides status code.
-    status = unsafe_load(Ptr{Cint}(ptr))
-    serd_status(error_sink(status))
-  end
-  serd_error_sink_ptr = cfunction(serd_error_sink, Cint, (Ptr{Void}, Ptr{CSerdError}))
-  
+  reader.error_sink = error_sink
+  serd_error_sink_ptr = isnull(reader.error_sink) ? C_NULL :
+    cfunction(serd_error_sink, Cint, (Ptr{Void}, Ptr{CSerdError}))
   ccall(
     (:serd_reader_set_error_sink, serd),
     Void,
     (Ptr{Void}, Ptr{Void}),
     reader.ptr, serd_error_sink_ptr)
+end
+function serd_error_sink(handle::Ptr{Void}, error::Ptr{CSerdError})
+  reader = unsafe_pointer_to_objref(handle)::SerdReader
+  serd_status(if !isnull(reader.error_sink)
+    # FIXME: Include error information besides status code.
+    status = unsafe_load(Ptr{Cint}(ptr))
+    get(reader.error_sink)(status)
+  end)
 end
 
 """ Enable or disable strict parsing.
@@ -317,22 +331,26 @@ end
 
 """ Create a new RDF writer.
 """
-function serd_writer_new(syntax::SerdSyntax, style::SerdStyles, sink)::SerdWriter
-  function serd_sink(buf::Ptr{Void}, len::Csize_t, stream::Ptr{Void})
-    sink(unsafe_string(Ptr{UInt8}(buf), len))
-    return len
-  end
-  serd_sink_ptr = cfunction(serd_sink, Csize_t, (Ptr{Void}, Csize_t, Ptr{Void}))
-  
+function serd_writer_new(syntax::SerdSyntax, style::SerdStyles, io::IO)::SerdWriter
+  sink = text -> write(io, text)
+  serd_writer_new(syntax, style, sink)
+end
+function serd_writer_new(syntax::SerdSyntax, style::SerdStyles, sink::Function)::SerdWriter
+  serd_sink_ptr = cfunction(serd_writer_sink, Csize_t, (Ptr{Void}, Csize_t, Ptr{Void}))
   env_ptr = ccall((:serd_env_new, serd), Ptr{Void}, (Ptr{CSerdNode},), C_NULL)
   writer_ptr = ccall(
     (:serd_writer_new, serd),
     Ptr{Void},
-    (Cint, Cint, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}),
-    syntax, style, env_ptr, C_NULL, serd_sink_ptr, C_NULL)
+    (Cint, Cint, Ptr{Void}, Ptr{Void}, Ptr{Void}, Any),
+    syntax, style, env_ptr, C_NULL, serd_sink_ptr, sink)
   writer = SerdWriter(writer_ptr, env_ptr)
   finalizer(writer, serd_writer_finalize)
   return writer
+end
+function serd_writer_sink(buf::Ptr{Void}, len::Csize_t, handle::Ptr{Void})
+  sink = unsafe_pointer_to_objref(handle)::Function
+  sink(unsafe_string(Ptr{UInt8}(buf), len))
+  return len
 end
 function serd_writer_finalize(writer)
   serd_writer_finish(writer)

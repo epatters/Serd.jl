@@ -42,8 +42,7 @@ serd_reader_read_string(reader, TurtleEx1.turtle)
 
 # Test write of single triple.
 buf = IOBuffer()
-sink = text -> write(buf, text)
-writer = serd_writer_new(SERD_TURTLE, SerdStyles(0), sink)
+writer = serd_writer_new(SERD_TURTLE, SerdStyles(0), buf)
 serd_writer_write_statement(writer, TurtleEx1.serd_triples[1])
 text = String(take!(buf))
 @test text == """

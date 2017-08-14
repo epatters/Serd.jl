@@ -1,5 +1,5 @@
-""" High-level interface to C library Serd.
-"""
+__precompile__()
+
 module Serd
 export to_serd, from_serd
 
