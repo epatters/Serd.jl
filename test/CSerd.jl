@@ -51,10 +51,35 @@ serd_reader_read_string(reader, TurtleEx1.turtle)
 buf = IOBuffer()
 writer = serd_writer_new(SERD_TURTLE, SerdStyles(0), buf)
 serd_writer_write_statement(writer, TurtleEx1.serd_triples[1])
+serd_writer_finish(writer)
 text = String(take!(buf))
 @test text == """
 <http://www.w3.org/TR/rdf-syntax-grammar>
-	dc:title \"RDF/XML Syntax Specification (Revised)\""""
+	dc:title \"RDF/XML Syntax Specification (Revised)\" .
+"""
+
+# Test write of single quad.
+serd_writer_write_statement(writer, TurtleEx1.serd_quads[1])
+serd_writer_finish(writer)
+text = String(take!(buf))
+@test text == """
+ex:graph {
+	 <http://www.w3.org/TR/rdf-syntax-grammar>
+		dc:title \"RDF/XML Syntax Specification (Revised)\" .
+}
+"""
+
+# Test write of base URI and prefix.
+serd_writer_set_base_uri(writer,
+  SerdNode("http://example.org/stuff/1.0/", SERD_URI))
+text = String(take!(buf))
+@test text == "@base <http://example.org/stuff/1.0/> .\n"
+
+serd_writer_set_prefix(writer,
+  SerdNode("rdf", SERD_LITERAL),
+  SerdNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#", SERD_URI))
+text = String(take!(buf))
+@test text == "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
 
 # Test manual free of writer (not necessary but allowed).
 serd_writer_free(writer)

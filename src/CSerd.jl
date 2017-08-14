@@ -6,8 +6,10 @@ export SerdException, SerdNode, SerdStatement, SerdStatementFlags, SerdStyles,
   serd_reader_set_error_sink, serd_reader_set_strict,
   serd_reader_add_blank_prefix, serd_reader_set_default_graph,
   serd_reader_read_file, serd_reader_read_string,
-  SerdWriter, serd_writer_new, serd_writer_write_statement, serd_writer_finish,
-  serd_writer_free
+  SerdWriter, serd_writer_new, serd_writer_free,
+  serd_writer_set_error_sink, serd_writer_chop_blank_prefix,
+  serd_writer_set_base_uri, serd_writer_set_root_uri,
+  serd_writer_set_prefix, serd_writer_write_statement, serd_writer_finish
   
 # Reference to Serd library.
 include("../deps/deps.jl")
@@ -138,8 +140,7 @@ function c_serd_node(node::SerdNode)::CSerdNode
         Cint(node.typ), node.value)
 end
 function c_serd_node(node::Nullable{SerdNode})::Ptr{CSerdNode}
-  isnull(node) ?
-    C_NULL : Base.unsafe_convert(Ptr{CSerdNode}, c_serd_node(get(node)))
+  isnull(node) ? C_NULL : pointer_from_objref(c_serd_node(get(node)))
 end
 
 """ Convert Serd node from C struct to Julia struct.
@@ -162,7 +163,7 @@ end
 
 serd_status(status) = Cint(isa(status, SerdStatus) ? status : SERD_SUCCESS)
 
-function check_status(status)
+function check_serd_status(status)
   status = SerdStatus(status)
   if status != SERD_SUCCESS
     throw(SerdException(status))
@@ -297,7 +298,7 @@ end
 """ Read a file at a given URI.
 """
 function serd_reader_read_file(reader::SerdReader, uri::String)
-  check_status(ccall(
+  check_serd_status(ccall(
     (:serd_reader_read_file, serd),
     Cint,
     (Ptr{Void}, Cstring),
@@ -308,7 +309,7 @@ end
 """ Read from UTF8 string.
 """
 function serd_reader_read_string(reader::SerdReader, str::String)
-  check_status(ccall(
+  check_serd_status(ccall(
     (:serd_reader_read_string, serd),
     Cint,
     (Ptr{Void}, Cstring),
@@ -346,17 +347,13 @@ function serd_writer_new(syntax::SerdSyntax, style::SerdStyles, sink::Function):
     Ptr{Void},
     (Cint, Cint, Ptr{Void}, Ptr{Void}, Ptr{Void}, Any),
     syntax, style, env_ptr, C_NULL, serd_sink_ptr, writer)
-  finalizer(writer, serd_writer_finalize)
+  finalizer(writer, serd_writer_free)
   return writer
 end
 function serd_writer_sink(buf::Ptr{Void}, len::Csize_t, handle::Ptr{Void})
   writer = unsafe_pointer_to_objref(handle)::SerdWriter
   writer.sink(unsafe_string(Ptr{UInt8}(buf), len))
   return len
-end
-function serd_writer_finalize(writer)
-  serd_writer_finish(writer)
-  serd_writer_free(writer)
 end
 
 """ Set a function to be called when errors occur during writing.
@@ -375,10 +372,56 @@ function serd_writer_set_error_sink(writer::SerdWriter, error_sink)
     writer.ptr, serd_error_sink_ptr, writer)
 end
 
+""" Set a prefix to be removed from matching blank node identifiers.
+"""
+function serd_writer_chop_blank_prefix(writer::SerdWriter, prefix::String)
+  ccall(
+    (:serd_writer_chop_blank_prefix, serd),
+    Void,
+    (Ptr{Void}, Cstring),
+    writer.ptr, prefix)
+end
+
+""" Set the current output base URI.
+"""
+function serd_writer_set_base_uri(writer::SerdWriter, uri::SerdNode)
+  check_serd_status(ccall(
+    (:serd_writer_set_base_uri, serd),
+    Cint,
+    (Ptr{Void}, Ref{CSerdNode}),
+    writer.ptr, c_serd_node(uri)
+  ))
+end
+
+""" Set the current root URI.
+
+The root URI should be a prefix of the base URI. The path of the root URI is
+the highest path any relative up-reference can refer to. 
+"""
+function serd_writer_set_root_uri(writer::SerdWriter, uri::SerdNode)
+  check_serd_status(ccall(
+    (:serd_writer_set_root_uri, serd),
+    Cint,
+    (Ptr{Void}, Ref{CSerdNode}),
+    writer.ptr, c_serd_node(uri)
+  ))
+end
+
+""" Set a namespace prefix.
+"""
+function serd_writer_set_prefix(writer::SerdWriter, name::SerdNode, uri::SerdNode)
+  check_serd_status(ccall(
+    (:serd_writer_set_prefix, serd),
+    Cint,
+    (Ptr{Void}, Ref{CSerdNode}, Ref{CSerdNode}),
+    writer.ptr, c_serd_node(name), c_serd_node(uri)
+  ))
+end
+
 """ Write a statement (RDF triple or quad).
 """
 function serd_writer_write_statement(writer::SerdWriter, stmt::SerdStatement)
-  serd_status(ccall(
+  check_serd_status(ccall(
     (:serd_writer_write_statement, serd),
     Cint,
     (Ptr{Void}, Cint, Ptr{CSerdNode}, Ref{CSerdNode}, Ref{CSerdNode},
@@ -394,15 +437,21 @@ function serd_writer_write_statement(writer::SerdWriter, stmt::SerdStatement)
   ))
 end
 
-""" Finish a write.
+""" Mark the end of an anonymous node's description. 
+"""
+function serd_writer_end_anon(writer::SerdWriter, node::SerdNode)
+  check_serd_status(ccall(
+    (:serd_writer_end_anon, serd),
+    Cint,
+    (Ptr{Void}, Ref{CSerdNode}),
+    writer.ptr, c_serd_node(node)
+  ))
+end
 
-This function will be called automatically when the Julia Serd writer is
-garbage collected.
+""" Finish a write.
 """
 function serd_writer_finish(writer::SerdWriter)
-  if writer.ptr != C_NULL
-    ccall((:serd_writer_finish, serd), Void, (Ptr{Void},), writer.ptr)
-  end
+  ccall((:serd_writer_finish, serd), Void, (Ptr{Void},), writer.ptr)
 end
 
 """ Free RDF writer. 
