@@ -1,15 +1,18 @@
 """ Low-level wrapper of C library Serd.
 """
 module CSerd
-export SerdException, SerdNode, SerdStatement, SerdStatementFlags,
-  SerdReader, SerdWriter, serd_reader_new, serd_reader_free,
+export SerdException, SerdNode, SerdStatement, SerdStatementFlags, SerdStyles,
+  SerdReader, serd_reader_new, serd_reader_free,
   serd_reader_set_error_sink, serd_reader_set_strict,
   serd_reader_add_blank_prefix, serd_reader_set_default_graph,
-  serd_reader_read_file, serd_reader_read_string
+  serd_reader_read_file, serd_reader_read_string,
+  SerdWriter, serd_writer_new, serd_writer_write_statement, serd_writer_finish,
+  serd_writer_free
   
 # Reference to Serd library.
 include("../deps/deps.jl")
 
+import Base: convert
 using AutoHashEquals
 
 """ Export an enum and all its values.
@@ -71,6 +74,7 @@ const SerdStatementFlags = UInt32
   SERD_STYLE_CURIED      = 1 << 3,  # Shorten URIs into CURIEs
   SERD_STYLE_BULK        = 1 << 4)  # Write output in pages
 @export_enum SerdStyle
+const SerdStyles = UInt32
 
 struct SerdException <: Exception
   status::SerdStatus
@@ -97,6 +101,7 @@ end
 
 mutable struct SerdWriter
   ptr::Ptr{Void}
+  env::Ptr{Void}
 end
 
 struct CSerdNode
@@ -119,11 +124,19 @@ end
 # Node
 ######
 
+""" Convert Serd node from Julia struct to C struct.
+"""
 function c_serd_node(node::SerdNode)::CSerdNode
   ccall((:serd_node_from_string, serd), CSerdNode, (Cint, Cstring),
         Cint(node.typ), node.value)
 end
+function c_serd_node(node::Nullable{SerdNode})::Ptr{CSerdNode}
+  isnull(node) ?
+    C_NULL : Base.unsafe_convert(Ptr{CSerdNode}, c_serd_node(get(node)))
+end
 
+""" Convert Serd node from C struct to Julia struct.
+"""
 function unsafe_serd_node(ptr::Ptr{CSerdNode})::Nullable{SerdNode}
   if ptr == C_NULL
     Nullable{SerdNode}()
@@ -155,7 +168,7 @@ end
 """ Create a new RDF reader.
 """
 function serd_reader_new(syntax::SerdSyntax, base_sink, prefix_sink,
-                         statement_sink, end_sink)
+                         statement_sink, end_sink)::SerdReader
 
   function serd_base_sink(handle::Ptr{Void}, uri::Ptr{CSerdNode})
     serd_status(base_sink(get(unsafe_serd_node(uri))))
@@ -299,7 +312,77 @@ function serd_reader_free(reader::SerdReader)
   end
 end
 
-# Write
-#######
+# Writer
+########
+
+""" Create a new RDF writer.
+"""
+function serd_writer_new(syntax::SerdSyntax, style::SerdStyles, sink)::SerdWriter
+  function serd_sink(buf::Ptr{Void}, len::Csize_t, stream::Ptr{Void})
+    sink(unsafe_string(Ptr{UInt8}(buf), len))
+    return len
+  end
+  serd_sink_ptr = cfunction(serd_sink, Csize_t, (Ptr{Void}, Csize_t, Ptr{Void}))
+  
+  env_ptr = ccall((:serd_env_new, serd), Ptr{Void}, (Ptr{CSerdNode},), C_NULL)
+  writer_ptr = ccall(
+    (:serd_writer_new, serd),
+    Ptr{Void},
+    (Cint, Cint, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}),
+    syntax, style, env_ptr, C_NULL, serd_sink_ptr, C_NULL)
+  writer = SerdWriter(writer_ptr, env_ptr)
+  finalizer(writer, serd_writer_finalize)
+  return writer
+end
+function serd_writer_finalize(writer)
+  serd_writer_finish(writer)
+  serd_writer_free(writer)
+end
+
+""" Write a statement (RDF triple or quad).
+"""
+function serd_writer_write_statement(writer::SerdWriter, stmt::SerdStatement)
+  serd_status(ccall(
+    (:serd_writer_write_statement, serd),
+    Cint,
+    (Ptr{Void}, Cint, Ptr{CSerdNode}, Ref{CSerdNode}, Ref{CSerdNode},
+     Ref{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode}),
+    writer.ptr,
+    stmt.flags,
+    c_serd_node(stmt.graph),
+    c_serd_node(stmt.subject),
+    c_serd_node(stmt.predicate),
+    c_serd_node(stmt.object),
+    c_serd_node(stmt.object_datatype),
+    c_serd_node(stmt.object_lang)
+  ))
+end
+
+""" Finish a write.
+
+This function will be called automatically when the Julia Serd writer is
+garbage collected.
+"""
+function serd_writer_finish(writer::SerdWriter)
+  if writer.ptr != C_NULL
+    ccall((:serd_writer_finish, serd), Void, (Ptr{Void},), writer.ptr)
+  end
+end
+
+""" Free RDF writer. 
+
+This function will be called automatically when the Julia Serd writer is
+garbage collected.
+"""
+function serd_writer_free(writer::SerdWriter)
+  if writer.ptr != C_NULL
+    ccall((:serd_writer_free, serd), Void, (Ptr{Void},), writer.ptr)
+    writer.ptr = C_NULL
+  end
+  if writer.env != C_NULL
+    ccall((:serd_env_free, serd), Void, (Ptr{Void},), writer.env)
+    writer.env = C_NULL
+  end
+end
 
 end

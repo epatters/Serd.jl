@@ -1,7 +1,8 @@
+module TurtleEx1
 using Serd.CSerd
 
 # https://www.w3.org/TeamSubmission/turtle/#sec-examples
-const turtle_ex1 = """
+const turtle = """
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix dc: <http://purl.org/dc/elements/1.1/> .
 @prefix ex: <http://example.org/stuff/1.0/> .
@@ -14,13 +15,13 @@ const turtle_ex1 = """
   ] .
 """
 
-const turtle_ex1_serd_prefixes = [
+const serd_prefixes = [
   (SerdNode("rdf", SERD_LITERAL), SerdNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#", SERD_URI)),
   (SerdNode("dc", SERD_LITERAL), SerdNode("http://purl.org/dc/elements/1.1/", SERD_URI)),
   (SerdNode("ex", SERD_LITERAL), SerdNode("http://example.org/stuff/1.0/", SERD_URI))
 ]
 
-const turtle_ex1_serd_triples = [
+const serd_triples = [
   SerdStatement(
     0,
     nothing,
@@ -59,7 +60,7 @@ const turtle_ex1_serd_triples = [
   ),
 ]
 
-const turtle_ex1_serd_quads = [
+const serd_quads = [
   SerdStatement(
     0,
     SerdNode("ex:graph", SERD_CURIE),
@@ -97,3 +98,5 @@ const turtle_ex1_serd_quads = [
     nothing,
   ),
 ]
+
+end
