@@ -107,6 +107,8 @@ end
 mutable struct SerdWriter
   ptr::Ptr{Void}
   env::Ptr{Void}
+  sink::Function
+  error_sink::Nullable{Function}
 end
 
 struct CSerdNode
@@ -246,15 +248,15 @@ function serd_reader_set_error_sink(reader::SerdReader, error_sink)
   ccall(
     (:serd_reader_set_error_sink, serd),
     Void,
-    (Ptr{Void}, Ptr{Void}),
-    reader.ptr, serd_error_sink_ptr)
+    (Ptr{Void}, Ptr{Void}, Any),
+    reader.ptr, serd_error_sink_ptr, reader)
 end
 function serd_error_sink(handle::Ptr{Void}, error::Ptr{CSerdError})
-  reader = unsafe_pointer_to_objref(handle)::SerdReader
-  serd_status(if !isnull(reader.error_sink)
+  obj = unsafe_pointer_to_objref(handle)::Union{SerdReader,SerdWriter}
+  serd_status(if !isnull(obj.error_sink)
     # FIXME: Include error information besides status code.
-    status = unsafe_load(Ptr{Cint}(ptr))
-    get(reader.error_sink)(status)
+    status = unsafe_load(Ptr{Cint}(error))
+    get(obj.error_sink)(status)
   end)
 end
 
@@ -338,23 +340,39 @@ end
 function serd_writer_new(syntax::SerdSyntax, style::SerdStyles, sink::Function)::SerdWriter
   serd_sink_ptr = cfunction(serd_writer_sink, Csize_t, (Ptr{Void}, Csize_t, Ptr{Void}))
   env_ptr = ccall((:serd_env_new, serd), Ptr{Void}, (Ptr{CSerdNode},), C_NULL)
-  writer_ptr = ccall(
+  writer = SerdWriter(C_NULL, env_ptr, sink, nothing)
+  writer.ptr = ccall(
     (:serd_writer_new, serd),
     Ptr{Void},
     (Cint, Cint, Ptr{Void}, Ptr{Void}, Ptr{Void}, Any),
-    syntax, style, env_ptr, C_NULL, serd_sink_ptr, sink)
-  writer = SerdWriter(writer_ptr, env_ptr)
+    syntax, style, env_ptr, C_NULL, serd_sink_ptr, writer)
   finalizer(writer, serd_writer_finalize)
   return writer
 end
 function serd_writer_sink(buf::Ptr{Void}, len::Csize_t, handle::Ptr{Void})
-  sink = unsafe_pointer_to_objref(handle)::Function
-  sink(unsafe_string(Ptr{UInt8}(buf), len))
+  writer = unsafe_pointer_to_objref(handle)::SerdWriter
+  writer.sink(unsafe_string(Ptr{UInt8}(buf), len))
   return len
 end
 function serd_writer_finalize(writer)
   serd_writer_finish(writer)
   serd_writer_free(writer)
+end
+
+""" Set a function to be called when errors occur during writing.
+
+The error_sink will be called with handle as its first argument. If no error
+function is set, errors are printed to stderr.
+"""
+function serd_writer_set_error_sink(writer::SerdWriter, error_sink)
+  writer.error_sink = error_sink
+  serd_error_sink_ptr = isnull(writer.error_sink) ? C_NULL :
+    cfunction(serd_error_sink, Cint, (Ptr{Void}, Ptr{CSerdError}))
+  ccall(
+    (:serd_writer_set_error_sink, serd),
+    Void,
+    (Ptr{Void}, Ptr{Void}, Any),
+    writer.ptr, serd_error_sink_ptr, writer)
 end
 
 """ Write a statement (RDF triple or quad).

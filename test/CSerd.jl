@@ -14,6 +14,13 @@ reader = serd_reader_new(SERD_TURTLE, nothing, nothing, statement_sink, nothing)
 serd_reader_read_string(reader, TurtleEx1.turtle)
 @test stmts == TurtleEx1.serd_triples
 
+# Test error handling.
+@test_throws SerdException serd_reader_read_string(reader, "XXX")
+errors = SerdStatus[]
+serd_reader_set_error_sink(reader, status -> push!(errors, status))
+@test_throws SerdException serd_reader_read_string(reader, "XXX")
+@test errors == [ SERD_ERR_BAD_SYNTAX ]
+
 # Test manual free of reader (not necessary but allowed).
 serd_reader_free(reader)
 @test reader.ptr == C_NULL
