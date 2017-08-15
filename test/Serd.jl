@@ -11,6 +11,11 @@ import ..TurtleEx1
 @test read_rdf_string(TurtleEx1.turtle) == TurtleEx1.statements
 @test read_rdf_file(TurtleEx1.turtle_path) == TurtleEx1.statements
 
+# Writer
+########
+
+@test sprint(write_rdf, TurtleEx1.statements) == TurtleEx1.turtle_alt
+
 # Data types
 ############
 
@@ -18,8 +23,8 @@ import ..TurtleEx1
 @test to_serd(Resource("rdf:type")) == SerdNode("rdf:type", SERD_URI)
 @test from_serd(SerdNode("rdf:type", SERD_URI)) == Resource("rdf:type")
 
-@test to_serd(Blank("?x")) == SerdNode("?x", SERD_BLANK)
-@test from_serd(SerdNode("?x", SERD_BLANK)) == Blank("?x")
+@test to_serd(Blank("b1")) == SerdNode("b1", SERD_BLANK)
+@test from_serd(SerdNode("b1", SERD_BLANK)) == Blank("b1")
 
 # Statement conversion
 triple = Triple(Resource("bob"), Resource("rdf:type"), Resource("Person"))

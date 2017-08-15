@@ -3,7 +3,9 @@ using Serd, Serd.CSerd
 
 # https://www.w3.org/TeamSubmission/turtle/#sec-examples
 const turtle_path = "data/turtle_ex1.ttl"
+const turtle_alt_path = "data/turtle_ex1_alt.ttl" # roundtripped through Serd
 const turtle = readstring(turtle_path)
+const turtle_alt = readstring(turtle_alt_path)
 
 const statements = Statement[
   Prefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"),

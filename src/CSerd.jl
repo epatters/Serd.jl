@@ -14,7 +14,7 @@ export SerdException, SerdNode, SerdStatement, SerdStatementFlags, SerdStyles,
 # Reference to Serd library.
 include("../deps/deps.jl")
 
-import Base: convert
+import Base: close, convert
 using AutoHashEquals
 
 """ Export an enum and all its values.
@@ -454,6 +454,7 @@ end
 function serd_writer_finish(writer::SerdWriter)
   ccall((:serd_writer_finish, serd), Void, (Ptr{Void},), writer.ptr)
 end
+close(writer::SerdWriter) = serd_writer_finish(writer)
 
 """ Free RDF writer. 
 

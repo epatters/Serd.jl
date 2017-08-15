@@ -1,7 +1,8 @@
 __precompile__()
 
 module Serd
-export read_rdf_file, read_rdf_string
+export read_rdf_file, read_rdf_string, write_rdf, write_rdf_statement,
+  rdf_writer
 
 using Reexport
 
@@ -47,6 +48,8 @@ function read_rdf_string(text::String, handler::Function;
   serd_reader_free(reader)
 end
 
+""" Create RDF reader with given event handler.
+"""
 function rdf_reader(syntax::String, handler::Function)::SerdReader
   base_sink(uri::SerdNode) = handler(BaseURI(uri.value))
   prefix_sink(name::SerdNode, uri::SerdNode) = handler(Prefix(name.value, uri.value))
@@ -55,6 +58,41 @@ function rdf_reader(syntax::String, handler::Function)::SerdReader
   
   serd_reader_new(serd_syntax(syntax), base_sink, prefix_sink,
                   statement_sink, end_sink)
+end
+
+# Writer
+########
+
+""" Write RDF to IO stream.
+"""
+function write_rdf(io::IO, stmts::Vector{Statement};
+                   syntax::String="turtle")::Void
+  writer = rdf_writer(syntax, io)
+  for stmt in stmts
+    write_rdf_statement(writer, stmt)
+  end
+  close(writer)
+end
+
+""" Write a single RDF statement.
+"""
+function write_rdf_statement(writer::SerdWriter, stmt::Statement)
+  serd_writer_write_statement(writer, to_serd(stmt))
+end
+function write_rdf_statement(writer::SerdWriter, stmt::BaseURI)
+  uri = SerdNode(stmt.uri, SERD_URI)
+  serd_writer_set_base_uri(writer, uri)
+end
+function write_rdf_statement(writer::SerdWriter, stmt::Prefix)
+  name = SerdNode(stmt.name, SERD_LITERAL)
+  uri = SerdNode(stmt.uri, SERD_URI)
+  serd_writer_set_prefix(writer, name, uri)
+end
+
+""" Create RDF writer with given IO stream.
+"""
+function rdf_writer(syntax::String, io::IO)::SerdWriter
+  serd_writer_new(serd_syntax(syntax), SerdStyles(0), io)
 end
 
 # Constants
