@@ -1,19 +1,19 @@
 module TurtleEx1
-using Serd.CSerd
+using Serd, Serd.CSerd
 
 # https://www.w3.org/TeamSubmission/turtle/#sec-examples
-const turtle = """
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix dc: <http://purl.org/dc/elements/1.1/> .
-@prefix ex: <http://example.org/stuff/1.0/> .
+const turtle_path = "data/turtle_ex1.ttl"
+const turtle = readstring(turtle_path)
 
-<http://www.w3.org/TR/rdf-syntax-grammar>
-  dc:title "RDF/XML Syntax Specification (Revised)" ;
-  ex:editor [
-    ex:fullname "Dave Beckett";
-    ex:homePage <http://purl.org/net/dajobe/>
-  ] .
-"""
+const statements = Statement[
+  Prefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
+  Prefix("dc", "http://purl.org/dc/elements/1.1/"),
+  Prefix("ex", "http://example.org/stuff/1.0/"),
+  Triple("http://www.w3.org/TR/rdf-syntax-grammar", "dc:title", Literal("RDF/XML Syntax Specification (Revised)")),
+  Triple("http://www.w3.org/TR/rdf-syntax-grammar", "ex:editor", Blank("b1")),
+  Triple(Blank("b1"), "ex:fullname", Literal("Dave Beckett")),
+  Triple(Blank("b1"), "ex:homePage", "http://purl.org/net/dajobe/"),
+]
 
 const serd_prefixes = [
   (SerdNode("rdf", SERD_LITERAL), SerdNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#", SERD_URI)),

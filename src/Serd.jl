@@ -1,7 +1,7 @@
 __precompile__()
 
 module Serd
-export to_serd, from_serd
+export read_rdf_file, read_rdf_string
 
 using Reexport
 
@@ -10,8 +10,55 @@ include("RDF.jl")
 using .CSerd
 @reexport using .RDF
 
-# Data types: Julia interface to C interface
-############################################
+# Reader
+########
+
+""" Read RDF from file.
+"""
+function read_rdf_file(path::String; kw...)::Vector{Statement}
+  stmts = Statement[]
+  read_rdf_file(path, stmt -> push!(stmts, stmt); kw...)
+  stmts
+end
+
+""" Read RDF from string.
+"""
+function read_rdf_string(text::String; kw...)::Vector{Statement}
+  stmts = Statement[]
+  read_rdf_string(text, stmt -> push!(stmts, stmt); kw...)
+  stmts
+end
+
+""" Read RDF from file in SAX (event-driven) style.
+"""
+function read_rdf_file(path::String, handler::Function;
+                       syntax::String="turtle")::Void
+  reader = rdf_reader(syntax, handler)
+  serd_reader_read_file(reader, path)
+  serd_reader_free(reader)
+end
+
+""" Read RDF from string in SAX (event-driven) style.
+"""
+function read_rdf_string(text::String, handler::Function;
+                         syntax::String="turtle")::Void
+  reader = rdf_reader(syntax, handler)
+  serd_reader_read_string(reader, text)
+  serd_reader_free(reader)
+end
+
+function rdf_reader(syntax::String, handler::Function)::SerdReader
+  base_sink(uri::SerdNode) = handler(BaseURI(uri.value))
+  prefix_sink(name::SerdNode, uri::SerdNode) = handler(Prefix(name.value, uri.value))
+  statement_sink(stmt::SerdStatement) = handler(from_serd(stmt))
+  end_sink(node::SerdNode) = nothing # FIXME: What do with this?
+  
+  serd_reader_new(serd_syntax(syntax), base_sink, prefix_sink,
+                  statement_sink, end_sink)
+end
+
+# Constants
+###########
 
 const NS_XSD = "http://www.w3.org/2001/XMLSchema#"
 const XSD_BOOLEAN = "$(NS_XSD)boolean"
@@ -22,6 +69,25 @@ const XSD_DOUBLE = "$(NS_XSD)double"
 rdf_datatype(::Type{Bool}) = XSD_BOOLEAN
 rdf_datatype(::Type{T}) where T <: Integer = XSD_INTEGER
 rdf_datatype(::Type{T}) where T <: Real = XSD_DECIMAL
+
+const julia_datatypes = Dict{String,Type}(
+  XSD_BOOLEAN => Bool,
+  XSD_INTEGER => Int,
+  XSD_DECIMAL => Float64,
+  XSD_DOUBLE => Float64,
+)
+julia_datatype(datatype::String) = julia_datatypes[datatype]
+
+const serd_syntaxes = Dict{String,SerdSyntax}(
+  "turtle"   => SERD_TURTLE,
+  "ntriples" => SERD_NTRIPLES,
+  "nquads"   => SERD_NQUADS,
+  "trig"     => SERD_TRIG,
+)
+serd_syntax(syntax::String) = serd_syntaxes[lowercase(syntax)]
+
+# Data types: Julia to C
+########################
 
 to_serd(node::Resource) = SerdNode(node.uri, SERD_URI)
 to_serd(node::Blank) = SerdNode(node.name, SERD_BLANK)
@@ -49,16 +115,8 @@ function to_serd(graph::Nullable{T} where T <: Node,
   SerdStatement(0, graph, subject, predicate, object, object_datatype, object_lang)
 end
 
-# Data types: C interface to Julia interface
-############################################
-
-const JULIA_TYPES = Dict{String,Type}(
-  XSD_BOOLEAN => Bool,
-  XSD_INTEGER => Int,
-  XSD_DECIMAL => Float64,
-  XSD_DOUBLE => Float64
-)
-julia_datatype(datatype::String) = JULIA_TYPES[datatype]
+# Data types: C to Julia
+########################
 
 function from_serd(node::SerdNode)::Node
   if node.typ == SERD_URI || node.typ == SERD_CURIE

@@ -1,5 +1,7 @@
 using Base.Test
 
+include("./data/turtle_ex1.jl")
+
 @testset "CSerd" begin
   include("CSerd.jl")
 end

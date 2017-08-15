@@ -2,12 +2,19 @@ module TestCSerd
 using Base.Test
 using Serd.CSerd
 
-include("./data/turtle_ex1.jl")
+import ..TurtleEx1
 
 # Reader
 ########
 
-# Test read of triples only.
+# Test read of triples from file.
+stmts = SerdStatement[]
+statement_sink = stmt -> push!(stmts, stmt)
+reader = serd_reader_new(SERD_TURTLE, nothing, nothing, statement_sink, nothing)
+serd_reader_read_file(reader, TurtleEx1.turtle_path)
+@test stmts == TurtleEx1.serd_triples
+
+# Test read of triples from string.
 stmts = SerdStatement[]
 statement_sink = stmt -> push!(stmts, stmt)
 reader = serd_reader_new(SERD_TURTLE, nothing, nothing, statement_sink, nothing)

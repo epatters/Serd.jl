@@ -1,6 +1,18 @@
 module TestSerd
 using Base.Test
 using Serd, Serd.CSerd
+import Serd: to_serd, from_serd
+
+import ..TurtleEx1
+
+# Reader
+########
+
+@test read_rdf_string(TurtleEx1.turtle) == TurtleEx1.statements
+@test read_rdf_file(TurtleEx1.turtle_path) == TurtleEx1.statements
+
+# Data types
+############
 
 # Node conversion
 @test to_serd(Resource("rdf:type")) == SerdNode("rdf:type", SERD_URI)

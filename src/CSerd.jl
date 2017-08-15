@@ -322,11 +322,12 @@ end
 This function will be called automatically when the Julia Serd reader is
 garbage collected.
 """
-function serd_reader_free(reader::SerdReader)
+function serd_reader_free(reader::SerdReader)::Void
   if reader.ptr != C_NULL
     ccall((:serd_reader_free, serd), Void, (Ptr{Void},), reader.ptr)
     reader.ptr = C_NULL
   end
+  nothing
 end
 
 # Writer
@@ -459,7 +460,7 @@ end
 This function will be called automatically when the Julia Serd writer is
 garbage collected.
 """
-function serd_writer_free(writer::SerdWriter)
+function serd_writer_free(writer::SerdWriter)::Void
   if writer.ptr != C_NULL
     ccall((:serd_writer_free, serd), Void, (Ptr{Void},), writer.ptr)
     writer.ptr = C_NULL
@@ -468,6 +469,7 @@ function serd_writer_free(writer::SerdWriter)
     ccall((:serd_env_free, serd), Void, (Ptr{Void},), writer.env)
     writer.env = C_NULL
   end
+  nothing
 end
 
 end
