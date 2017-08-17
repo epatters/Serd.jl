@@ -1,6 +1,6 @@
 module TestSerd
 using Base.Test
-using Serd, Serd.CSerd
+using Serd, Serd.CSerd, Serd.RDF
 import Serd: to_serd, from_serd
 
 import ..TurtleEx1

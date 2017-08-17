@@ -4,4 +4,3 @@ BinDeps
 @osx Homebrew
 
 AutoHashEquals
-Reexport

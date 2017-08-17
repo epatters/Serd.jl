@@ -1,5 +1,5 @@
 module TurtleEx1
-using Serd, Serd.CSerd
+using Serd, Serd.CSerd, Serd.RDF
 
 # https://www.w3.org/TeamSubmission/turtle/#sec-examples
 const turtle_path = "data/turtle_ex1.ttl"
