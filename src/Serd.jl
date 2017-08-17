@@ -125,7 +125,8 @@ serd_syntax(syntax::String) = serd_syntaxes[lowercase(syntax)]
 # Data types: Julia to C
 ########################
 
-to_serd(node::Resource) = SerdNode(node.uri, SERD_URI)
+to_serd(node::ResourceURI) = SerdNode(node.uri, SERD_URI)
+to_serd(node::ResourceCURIE) = SerdNode("$(node.prefix):$(node.name)", SERD_CURIE)
 to_serd(node::Blank) = SerdNode(node.name, SERD_BLANK)
 to_serd(stmt::Triple) = to_serd(
   Nullable{Node}(), stmt.subject, stmt.predicate, stmt.object)
@@ -155,8 +156,11 @@ end
 ########################
 
 function from_serd(node::SerdNode)::Node
-  if node.typ == SERD_URI || node.typ == SERD_CURIE
-    Resource(node.value)
+  if node.typ == SERD_URI
+    ResourceURI(node.value)
+  elseif node.typ == SERD_CURIE
+    prefix, name = split(node.value, ':', limit=2)
+    ResourceCURIE(prefix, name)
   elseif node.typ == SERD_BLANK
     Blank(node.value)
   else

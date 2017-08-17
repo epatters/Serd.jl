@@ -11,10 +11,22 @@ const statements = Statement[
   Prefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
   Prefix("dc", "http://purl.org/dc/elements/1.1/"),
   Prefix("ex", "http://example.org/stuff/1.0/"),
-  Triple("http://www.w3.org/TR/rdf-syntax-grammar", "dc:title", Literal("RDF/XML Syntax Specification (Revised)")),
-  Triple("http://www.w3.org/TR/rdf-syntax-grammar", "ex:editor", Blank("b1")),
-  Triple(Blank("b1"), "ex:fullname", Literal("Dave Beckett")),
-  Triple(Blank("b1"), "ex:homePage", "http://purl.org/net/dajobe/"),
+  Triple(
+    Resource("http://www.w3.org/TR/rdf-syntax-grammar"),
+    Resource("dc", "title"),
+    Literal("RDF/XML Syntax Specification (Revised)")),
+  Triple(
+    Resource("http://www.w3.org/TR/rdf-syntax-grammar"),
+    Resource("ex", "editor"),
+    Blank("b1")),
+  Triple(
+    Blank("b1"),
+    Resource("ex", "fullname"),
+    Literal("Dave Beckett")),
+  Triple(
+    Blank("b1"),
+    Resource("ex", "homePage"),
+    Resource("http://purl.org/net/dajobe/")),
 ]
 
 const serd_prefixes = [

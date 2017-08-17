@@ -1,7 +1,8 @@
 """ Generic Julia interface for RDF graphs.
 """
 module RDF
-export Node, Statement, BaseURI, Prefix, Resource, Literal, Blank, Triple, Quad
+export Node, Resource, Statement, BaseURI, Prefix, ResourceURI, ResourceCURIE,
+  Literal, Blank, Triple, Quad
 
 import Base: convert
 using AutoHashEquals
@@ -10,6 +11,7 @@ using AutoHashEquals
 ############
 
 abstract type Node end
+abstract type Resource <: Node end
 abstract type Statement end
 
 @auto_hash_equals struct BaseURI <: Statement
@@ -21,8 +23,13 @@ end
   uri::String
 end
 
-@auto_hash_equals struct Resource <: Node
+@auto_hash_equals struct ResourceURI <: Resource
   uri::String
+end
+
+@auto_hash_equals struct ResourceCURIE <: Resource
+  prefix::String
+  name::String
 end
 
 @auto_hash_equals struct Literal <: Node
@@ -49,6 +56,9 @@ end
 end
 
 # Convenience constructors
+Resource(uri::String) = ResourceURI(uri)
+Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
+
 convert(::Type{Node}, x::String) = Resource(x)
 convert(::Type{Node}, x::Symbol) = Resource(string(x))
 

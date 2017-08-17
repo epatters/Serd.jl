@@ -20,8 +20,11 @@ import ..TurtleEx1
 ############
 
 # Node conversion
-@test to_serd(Resource("rdf:type")) == SerdNode("rdf:type", SERD_URI)
-@test from_serd(SerdNode("rdf:type", SERD_URI)) == Resource("rdf:type")
+@test to_serd(ResourceCURIE("rdf", "type")) == SerdNode("rdf:type", SERD_CURIE)
+@test from_serd(SerdNode("rdf:type", SERD_CURIE)) == ResourceCURIE("rdf", "type")
+
+@test to_serd(ResourceURI("foo")) == SerdNode("foo", SERD_URI)
+@test from_serd(SerdNode("foo", SERD_URI)) == ResourceURI("foo")
 
 @test to_serd(Blank("b1")) == SerdNode("b1", SERD_BLANK)
 @test from_serd(SerdNode("b1", SERD_BLANK)) == Blank("b1")
