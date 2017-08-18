@@ -4,7 +4,6 @@ module RDF
 export Node, Resource, Statement, BaseURI, Prefix, ResourceURI, ResourceCURIE,
   Literal, Blank, Triple, Quad
 
-import Base: convert
 using AutoHashEquals
 
 # Data types
@@ -58,8 +57,5 @@ end
 # Convenience constructors
 Resource(uri::String) = ResourceURI(uri)
 Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
-
-convert(::Type{Node}, x::String) = Resource(x)
-convert(::Type{Node}, x::Symbol) = Resource(string(x))
 
 end

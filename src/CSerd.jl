@@ -14,7 +14,7 @@ export SerdException, SerdNode, SerdStatement, SerdStatementFlags, SerdStyles,
 # Reference to Serd library.
 include("../deps/deps.jl")
 
-import Base: close, convert
+import Base: close
 using AutoHashEquals
 
 """ Export an enum and all its values.
