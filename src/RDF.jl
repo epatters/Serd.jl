@@ -2,7 +2,7 @@
 """
 module RDF
 export Node, Resource, Statement, BaseURI, Prefix, ResourceURI, ResourceCURIE,
-  Literal, Blank, Triple, Quad, Prefixes
+  Literal, Blank, Triple, Quad
 
 using AutoHashEquals
 
@@ -55,28 +55,39 @@ end
 end
 
 # Convenience constructors
+Prefix(name::String) = Prefixes.prefix(name)
 Resource(uri::String) = ResourceURI(uri)
 Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
 
 # Prefixes
 ##########
 
-""" Some commonly used RDF prefixes.
-"""
 module Prefixes
-export xsd, rdf, rdfs, owl, skos, dc, foaf, sioc
+export prefix, add_prefix!
 
 using ..RDF: Prefix
 
-const xsd = Prefix("xsd", "http://www.w3.org/2001/XMLSchema#")
-const rdf = Prefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-const rdfs = Prefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
-const owl = Prefix("owl", "http://www.w3.org/2002/07/owl#")
-const skos = Prefix("skos", "http://www.w3.org/2004/02/skos/core#")
+const _prefixes = Dict{String,Prefix}()
 
-const dc = Prefix("dc", "http://purl.org/dc/elements/1.1/")
-const foaf = Prefix("foaf", "http://xmlns.com/foaf/0.1/")
-const sioc = Prefix("sioc", "http://rdfs.org/sioc/ns#")
+function prefix(name::String)::Prefix
+  _prefixes[name]
+end
+
+function add_prefix!(name::String, uri::String)
+  if haskey(_prefixes, name)
+    error("Prefix \"$name\" already defined")
+  end
+  _prefixes[name] = Prefix(name, uri)
+end
+
+add_prefix!("xsd", "http://www.w3.org/2001/XMLSchema#")
+add_prefix!("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+add_prefix!("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
+add_prefix!("owl", "http://www.w3.org/2002/07/owl#")
+
+add_prefix!("schema", "http://schema.org/")
+add_prefix!("skos", "http://www.w3.org/2004/02/skos/core#")
+add_prefix!("prov", "http://www.w3.org/ns/prov#")
 
 end
 
