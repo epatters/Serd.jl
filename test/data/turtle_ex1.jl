@@ -8,8 +8,8 @@ const turtle = readstring(turtle_path)
 const turtle_alt = readstring(turtle_alt_path)
 
 const statements = Statement[
-  Prefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
-  Prefix("dc", "http://purl.org/dc/elements/1.1/"),
+  Prefixes.rdf,
+  Prefixes.dc,
   Prefix("ex", "http://example.org/stuff/1.0/"),
   Triple(
     Resource("http://www.w3.org/TR/rdf-syntax-grammar"),
