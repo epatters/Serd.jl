@@ -71,6 +71,9 @@ function write_rdf(io::IO, stmts::Vector{Statement};
   end
   close(writer)
 end
+function write_rdf(stmts::Vector{Statement}; kw...)
+  write_rdf(STDOUT, stmts; kw...)
+end
 
 """ Write a single RDF statement.
 """
