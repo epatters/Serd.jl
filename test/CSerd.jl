@@ -54,26 +54,31 @@ serd_reader_read_string(reader, TurtleEx1.turtle)
 # Writer
 ########
 
+function normalize_whitespace(text::AbstractString)
+  text = replace(replace(text, r"\n+", "\n"), r"\t", "  ")
+  string(strip(text), "\n") # Exactly one trailing newline.
+end
+
 # Test write of single triple.
 buf = IOBuffer()
 writer = serd_writer_new(SERD_TURTLE, SerdStyles(0), buf)
 serd_writer_write_statement(writer, TurtleEx1.serd_triples[1])
 serd_writer_finish(writer)
 text = String(take!(buf))
-@test text == """
+@test normalize_whitespace(text) == """
 <http://www.w3.org/TR/rdf-syntax-grammar>
-	dc:title \"RDF/XML Syntax Specification (Revised)\" .
+  dc:title \"RDF/XML Syntax Specification (Revised)\" .
 """
 
 # Test write of single quad.
 serd_writer_write_statement(writer, TurtleEx1.serd_quads[1])
 serd_writer_finish(writer)
 text = String(take!(buf))
-@test text == """
+@test normalize_whitespace(text) == """
 ex:graph {
-	 <http://www.w3.org/TR/rdf-syntax-grammar>
-		dc:title \"RDF/XML Syntax Specification (Revised)\" .
-}
+   <http://www.w3.org/TR/rdf-syntax-grammar>
+    dc:title \"RDF/XML Syntax Specification (Revised)\" .
+ }
 """
 
 # Test write of base URI and prefix.

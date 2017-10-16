@@ -14,7 +14,7 @@ import ..TurtleEx1
 # Writer
 ########
 
-@test sprint(write_rdf, TurtleEx1.statements) == TurtleEx1.turtle_alt
+@test strip(sprint(write_rdf, TurtleEx1.statements)) == strip(TurtleEx1.turtle_alt)
 
 # Data types
 ############
