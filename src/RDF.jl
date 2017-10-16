@@ -1,17 +1,17 @@
 """ Generic Julia interface for RDF graphs.
 """
 module RDF
-export Node, Resource, Statement, BaseURI, Prefix, ResourceURI, ResourceCURIE,
-  Literal, Blank, Triple, Quad
+export Expression, Node, Statement, BaseURI, Prefix,
+  Resource, ResourceURI, ResourceCURIE, Literal, Blank, Triple, Quad
 
 using AutoHashEquals
 
 # Data types
 ############
 
-abstract type Node end
-abstract type Resource <: Node end
-abstract type Statement end
+abstract type Expression end
+abstract type Node <: Expression end
+abstract type Statement <: Expression end
 
 @auto_hash_equals struct BaseURI <: Statement
   uri::String
@@ -21,6 +21,8 @@ end
   name::String
   uri::String
 end
+
+abstract type Resource <: Node end
 
 @auto_hash_equals struct ResourceURI <: Resource
   uri::String
