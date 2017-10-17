@@ -1,7 +1,7 @@
 """ Generic Julia interface for RDF graphs.
 """
 module RDF
-export Expression, Node, Statement, BaseURI, Prefix,
+export Expression, Statement, Node, Edge, BaseURI, Prefix,
   Resource, ResourceURI, ResourceCURIE, Literal, Blank, Triple, Quad
 
 using AutoHashEquals
@@ -10,7 +10,6 @@ using AutoHashEquals
 ############
 
 abstract type Expression end
-abstract type Node <: Expression end
 abstract type Statement <: Expression end
 
 @auto_hash_equals struct BaseURI <: Statement
@@ -22,6 +21,7 @@ end
   uri::String
 end
 
+abstract type Node <: Expression end
 abstract type Resource <: Node end
 
 @auto_hash_equals struct ResourceURI <: Resource
@@ -43,13 +43,15 @@ end
   name::String
 end
 
-@auto_hash_equals struct Triple <: Statement
+abstract type Edge <: Statement end
+
+@auto_hash_equals struct Triple <: Edge
   subject::Union{Resource,Blank}
   predicate::Resource
   object::Node
 end
 
-@auto_hash_equals struct Quad <: Statement
+@auto_hash_equals struct Quad <: Edge
   subject::Union{Resource,Blank}
   predicate::Resource
   object::Node
@@ -60,6 +62,14 @@ end
 Prefix(name::String) = Prefixes.prefix(name)
 Resource(uri::String) = ResourceURI(uri)
 Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
+
+Edge(subj::Node, pred::Node, obj::Node) = Triple(subj, pred, obj)
+Edge(subj::Node, pred::Node, obj::Node, graph::Node) = Quad(subj, pred, obj, graph)
+Edge(subj::Node, pred::Node, obj::Node, graph::Void) = Triple(subj, pred, obj)
+
+function Edge(subj::Node, pred::Node, obj::Node, graph::Nullable{<:Node})
+  isnull(graph) ? Triple(subj, pred, obj) : Quad(subj, pred, obj, get(graph))
+end
 
 # Prefixes
 ##########
