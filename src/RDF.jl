@@ -44,16 +44,16 @@ end
 end
 
 @auto_hash_equals struct Triple <: Statement
-  subject::Node
-  predicate::Node
+  subject::Union{Resource,Blank}
+  predicate::Resource
   object::Node
 end
 
 @auto_hash_equals struct Quad <: Statement
-  subject::Node
-  predicate::Node
+  subject::Union{Resource,Blank}
+  predicate::Resource
   object::Node
-  graph::Node
+  graph::Resource
 end
 
 # Convenience constructors

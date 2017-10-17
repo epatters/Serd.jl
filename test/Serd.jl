@@ -30,12 +30,12 @@ import ..TurtleEx1
 @test from_serd(SerdNode("b1", SERD_BLANK)) == Blank("b1")
 
 # Statement conversion
-triple = Triple(Resource("bob"), Resource("rdf:type"), Resource("Person"))
+triple = Triple(Resource("bob"), Resource("rdf","type"), Resource("Person"))
 stmt = SerdStatement(
   0,
   nothing,
   SerdNode("bob", SERD_URI),
-  SerdNode("rdf:type", SERD_URI),
+  SerdNode("rdf:type", SERD_CURIE),
   SerdNode("Person", SERD_URI),
   nothing,
   nothing,
