@@ -4,6 +4,8 @@ module Serd
 export RDF, read_rdf_file, read_rdf_string, write_rdf, write_rdf_statement,
   rdf_writer
 
+using Nullables
+
 include("CSerd.jl")
 include("RDF.jl")
 using .CSerd
@@ -31,7 +33,7 @@ end
 """ Read RDF from file in SAX (event-driven) style.
 """
 function read_rdf_file(path::String, handler::Function;
-                       syntax::String="turtle")::Void
+                       syntax::String="turtle")::Nothing
   reader = rdf_reader(syntax, handler)
   serd_reader_read_file(reader, path)
   serd_reader_free(reader)
@@ -40,7 +42,7 @@ end
 """ Read RDF from string in SAX (event-driven) style.
 """
 function read_rdf_string(text::String, handler::Function;
-                         syntax::String="turtle")::Void
+                         syntax::String="turtle")::Nothing
   reader = rdf_reader(syntax, handler)
   serd_reader_read_string(reader, text)
   serd_reader_free(reader)
@@ -64,7 +66,7 @@ end
 """ Write RDF to IO stream.
 """
 function write_rdf(io::IO, stmts::Vector{<:Statement};
-                   syntax::String="turtle")::Void
+                   syntax::String="turtle")::Nothing
   writer = rdf_writer(syntax, io)
   for stmt in stmts
     write_rdf_statement(writer, stmt)

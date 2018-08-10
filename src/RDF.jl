@@ -5,6 +5,7 @@ export Expression, Statement, Node, Edge, BaseURI, Prefix,
   Resource, ResourceURI, ResourceCURIE, Literal, Blank, Triple, Quad
 
 using AutoHashEquals
+using Nullables
 
 # Data types
 ############
@@ -65,7 +66,7 @@ Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
 
 Edge(subj::Node, pred::Node, obj::Node) = Triple(subj, pred, obj)
 Edge(subj::Node, pred::Node, obj::Node, graph::Node) = Quad(subj, pred, obj, graph)
-Edge(subj::Node, pred::Node, obj::Node, graph::Void) = Triple(subj, pred, obj)
+Edge(subj::Node, pred::Node, obj::Node, graph::Nothing) = Triple(subj, pred, obj)
 
 function Edge(subj::Node, pred::Node, obj::Node, graph::Nullable{<:Node})
   isnull(graph) ? Triple(subj, pred, obj) : Quad(subj, pred, obj, get(graph))

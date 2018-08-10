@@ -1,5 +1,5 @@
 module TestCSerd
-using Base.Test
+using Test
 using Serd.CSerd
 
 import ..TurtleEx1
@@ -55,7 +55,7 @@ serd_reader_read_string(reader, TurtleEx1.turtle)
 ########
 
 function normalize_whitespace(text::AbstractString)
-  text = replace(replace(text, r"\n+", "\n"), r"\t", "  ")
+  text = replace(replace(text, r"\n+" => "\n"), r"\t" => "  ")
   string(strip(text), "\n") # Exactly one trailing newline.
 end
 

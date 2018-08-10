@@ -4,8 +4,8 @@ using Serd, Serd.CSerd, Serd.RDF
 # https://www.w3.org/TeamSubmission/turtle/#sec-examples
 const turtle_path = "data/turtle_ex1.ttl"
 const turtle_alt_path = "data/turtle_ex1_alt.ttl" # roundtripped through Serd
-const turtle = readstring(turtle_path)
-const turtle_alt = readstring(turtle_alt_path)
+const turtle = read(turtle_path, String)
+const turtle_alt = read(turtle_alt_path, String)
 
 const statements = Statement[
   Prefix("rdf"),

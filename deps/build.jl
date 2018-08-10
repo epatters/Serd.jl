@@ -3,7 +3,7 @@ using BinDeps
 
 serd = library_dependency("serd", aliases=["libserd", "libserd-0"])
 
-if is_apple()
+if Sys.isapple()
   using Homebrew
   provides(Homebrew.HB, "serd", serd, os=:Darwin)
 end

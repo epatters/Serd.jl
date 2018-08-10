@@ -14,8 +14,8 @@ export SerdException, SerdNode, SerdStatement, SerdStatementFlags, SerdStyles,
 # Reference to Serd library.
 include("../deps/deps.jl")
 
-import Base: close
 using AutoHashEquals
+using Nullables
 
 """ Export an enum and all its values.
 """
@@ -30,53 +30,62 @@ const Cbool = UInt8
 # Data types
 ############
 
-@enum(SerdStatus,
-  SERD_SUCCESS,
-  SERD_FAILURE,
-  SERD_ERR_UNKNOWN,
-  SERD_ERR_BAD_SYNTAX,
-  SERD_ERR_BAD_ARG,
-  SERD_ERR_NOT_FOUND,
-  SERD_ERR_ID_CLASH,
-  SERD_ERR_BAD_CURIE,
-  SERD_ERR_INTERNAL)
+@enum SerdStatus::Cint begin
+  SERD_SUCCESS
+  SERD_FAILURE
+  SERD_ERR_UNKNOWN
+  SERD_ERR_BAD_SYNTAX
+  SERD_ERR_BAD_ARG
+  SERD_ERR_NOT_FOUND
+  SERD_ERR_ID_CLASH
+  SERD_ERR_BAD_CURIE
+  SERD_ERR_INTERNAL
+end
 @export_enum SerdStatus
 
-@enum(SerdSyntax,
-  SERD_TURTLE   = 1,  # Turtle - Terse RDF Triple Language
-  SERD_NTRIPLES = 2,  # NTriples - Line-based RDF triples
-  SERD_NQUADS   = 3,  # NQuads - Line-based RDF quads
-  SERD_TRIG     = 4)  # TRiG - Terse RDF quads
+@enum SerdSyntax::Cint begin
+  SERD_TURTLE   = 1  # Turtle - Terse RDF Triple Language
+  SERD_NTRIPLES = 2  # NTriples - Line-based RDF triples
+  SERD_NQUADS   = 3  # NQuads - Line-based RDF quads
+  SERD_TRIG     = 4  # TRiG - Terse RDF quads
+end
 @export_enum SerdSyntax
 
-@enum(SerdStatementFlag,
-  SERD_EMPTY_S      = 1 << 1,  # Empty blank node subject
-  SERD_EMPTY_O      = 1 << 2,  # Empty blank node object
-  SERD_ANON_S_BEGIN = 1 << 3,  # Start of anonymous subject
-  SERD_ANON_O_BEGIN = 1 << 4,  # Start of anonymous object
-  SERD_ANON_CONT    = 1 << 5,  # Continuation of anonymous node
-  SERD_LIST_S_BEGIN = 1 << 6,  # Start of list subject
-  SERD_LIST_O_BEGIN = 1 << 7,  # Start of list object
-  SERD_LIST_CONT    = 1 << 8)  # Continuation of list
+@enum SerdStatementFlag::Cint begin
+  SERD_EMPTY_S      = 1 << 1  # Empty blank node subject
+  SERD_EMPTY_O      = 1 << 2  # Empty blank node object
+  SERD_ANON_S_BEGIN = 1 << 3  # Start of anonymous subject
+  SERD_ANON_O_BEGIN = 1 << 4  # Start of anonymous object
+  SERD_ANON_CONT    = 1 << 5  # Continuation of anonymous node
+  SERD_LIST_S_BEGIN = 1 << 6  # Start of list subject
+  SERD_LIST_O_BEGIN = 1 << 7  # Start of list object
+  SERD_LIST_CONT    = 1 << 8  # Continuation of list
+end
 @export_enum SerdStatementFlag
-const SerdStatementFlags = UInt32
 
-@enum(SerdType,
-  SERD_NOTHING = 0,  # The type of a nonexistent node.
-  SERD_LITERAL = 1,  # Literal value
-  SERD_URI     = 2,  # URI (absolute or relative)
-  SERD_CURIE   = 3,  # CURIE, a shortened URI
-  SERD_BLANK   = 4)  # A blank node
+const SerdStatementFlags = Cint
+Base.convert(::Type{SerdStatementFlags}, x::SerdStatementFlag) = Cint(x)
+
+@enum SerdType::Cint begin
+  SERD_NOTHING = 0  # The type of a nonexistent node.
+  SERD_LITERAL = 1  # Literal value
+  SERD_URI     = 2  # URI (absolute or relative)
+  SERD_CURIE   = 3  # CURIE, a shortened URI
+  SERD_BLANK   = 4  # A blank node
+end
 @export_enum SerdType
 
-@enum(SerdStyle,
-  SERD_STYLE_ABBREVIATED = 1,       # Abbreviate triples when possible
-  SERD_STYLE_ASCII       = 1 << 1,  # Escape all non-ASCII characters
-  SERD_STYLE_RESOLVED    = 1 << 2,  # Resolve URIs against base URI
-  SERD_STYLE_CURIED      = 1 << 3,  # Shorten URIs into CURIEs
-  SERD_STYLE_BULK        = 1 << 4)  # Write output in pages
+@enum SerdStyle::Cint begin
+  SERD_STYLE_ABBREVIATED = 1       # Abbreviate triples when possible
+  SERD_STYLE_ASCII       = 1 << 1  # Escape all non-ASCII characters
+  SERD_STYLE_RESOLVED    = 1 << 2  # Resolve URIs against base URI
+  SERD_STYLE_CURIED      = 1 << 3  # Shorten URIs into CURIEs
+  SERD_STYLE_BULK        = 1 << 4  # Write output in pages
+end
 @export_enum SerdStyle
-const SerdStyles = UInt32
+
+const SerdStyles = Cint
+Base.convert(::Type{SerdStyles}, x::SerdStyle) = Cint(x)
 
 struct SerdException <: Exception
   status::SerdStatus
@@ -98,7 +107,7 @@ end
 end
 
 mutable struct SerdReader
-  ptr::Ptr{Void}
+  ptr::Ptr{Cvoid}
   base_sink::Nullable{Function}
   prefix_sink::Nullable{Function}
   statement_sink::Nullable{Function}
@@ -107,13 +116,13 @@ mutable struct SerdReader
 end
 
 mutable struct SerdWriter
-  ptr::Ptr{Void}
-  env::Ptr{Void}
+  ptr::Ptr{Cvoid}
+  env::Ptr{Cvoid}
   sink::Function
   error_sink::Nullable{Function}
 end
 
-struct CSerdNode
+mutable struct CSerdNode
   buf::Ptr{UInt8}
   n_bytes::Csize_t
   n_chars::Csize_t
@@ -121,13 +130,13 @@ struct CSerdNode
   typ::Cint
 end
 
-struct CSerdError
+mutable struct CSerdError
   status::Cint
   filename::Ptr{UInt8}
   line::Cuint
   col::Cuint
   char::Ptr{Cchar}
-  args::Ptr{Void} # va_list *
+  args::Ptr{Cvoid} # va_list *
 end
 
 # Node
@@ -177,36 +186,36 @@ end
 """
 function serd_reader_new(syntax::SerdSyntax, base_sink, prefix_sink,
                          statement_sink, end_sink)::SerdReader
-  serd_base_sink_ptr = cfunction(
-    serd_base_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}))
-  serd_prefix_sink_ptr = cfunction(
-    serd_prefix_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}, Ptr{CSerdNode}))  
-  serd_statement_sink_ptr = cfunction(
-    serd_statement_sink,
+  serd_base_sink_ptr = @cfunction(
+    $(CSerd.serd_base_sink), Cint, (Ptr{Cvoid}, Ptr{CSerdNode}))
+  serd_prefix_sink_ptr = @cfunction(
+    $(CSerd.serd_prefix_sink), Cint, (Ptr{Cvoid}, Ptr{CSerdNode}, Ptr{CSerdNode}))
+  serd_statement_sink_ptr = @cfunction(
+    $(CSerd.serd_statement_sink),
     Cint,
-    (Ptr{Void}, Cint, Ptr{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode},
+    (Ptr{Cvoid}, Cint, Ptr{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode},
      Ptr{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode}))
-  serd_end_sink_ptr = cfunction(
-    serd_end_sink, Cint, (Ptr{Void}, Ptr{CSerdNode}))
+  serd_end_sink_ptr = @cfunction(
+    $(CSerd.serd_end_sink), Cint, (Ptr{Cvoid}, Ptr{CSerdNode}))
   
   reader = SerdReader(
     C_NULL, base_sink, prefix_sink, statement_sink, end_sink, nothing)
   reader.ptr = ccall(
     (:serd_reader_new, serd),
-    Ptr{Void},
-    (Cint, Any, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}),
+    Ptr{Cvoid},
+    (Cint, Any, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}),
     syntax, reader, C_NULL, serd_base_sink_ptr, serd_prefix_sink_ptr,
     serd_statement_sink_ptr, serd_end_sink_ptr)
-  finalizer(reader, serd_reader_free)
+  finalizer(serd_reader_free, reader)
   return reader
 end
-function serd_base_sink(handle::Ptr{Void}, uri::Ptr{CSerdNode})
+function serd_base_sink(handle::Ptr{Cvoid}, uri::Ptr{CSerdNode})
   reader = unsafe_pointer_to_objref(handle)::SerdReader
   serd_status(if !isnull(reader.base_sink)
     get(reader.base_sink)(get(unsafe_serd_node(uri)))
   end)
 end
-function serd_prefix_sink(handle::Ptr{Void}, name::Ptr{CSerdNode}, uri::Ptr{CSerdNode})
+function serd_prefix_sink(handle::Ptr{Cvoid}, name::Ptr{CSerdNode}, uri::Ptr{CSerdNode})
   reader = unsafe_pointer_to_objref(handle)::SerdReader
   serd_status(if !isnull(reader.prefix_sink)
     get(reader.prefix_sink)(
@@ -215,7 +224,7 @@ function serd_prefix_sink(handle::Ptr{Void}, name::Ptr{CSerdNode}, uri::Ptr{CSer
   end)
 end
 function serd_statement_sink(
-    handle::Ptr{Void}, flags::Cint, graph::Ptr{CSerdNode},
+    handle::Ptr{Cvoid}, flags::Cint, graph::Ptr{CSerdNode},
     subject::Ptr{CSerdNode}, predicate::Ptr{CSerdNode}, object::Ptr{CSerdNode},
     object_datatype::Ptr{CSerdNode}, object_lang::Ptr{CSerdNode}
   )
@@ -231,7 +240,7 @@ function serd_statement_sink(
       unsafe_serd_node(object_lang)))
   end)
 end
-function serd_end_sink(handle::Ptr{Void}, node::Ptr{CSerdNode})
+function serd_end_sink(handle::Ptr{Cvoid}, node::Ptr{CSerdNode})
   reader = unsafe_pointer_to_objref(handle)::SerdReader
   serd_status(if !isnull(reader.end_sink)
     get(reader.end_sink)(get(unsafe_serd_node(node)))
@@ -245,19 +254,19 @@ If no error function is set, errors are printed to stderr in GCC style.
 function serd_reader_set_error_sink(reader::SerdReader, error_sink)
   reader.error_sink = error_sink
   serd_error_sink_ptr = isnull(reader.error_sink) ? C_NULL :
-    cfunction(serd_error_sink, Cint, (Ptr{Void}, Ptr{CSerdError}))
+    @cfunction($(CSerd.serd_error_sink), Cint, (Ptr{Cvoid}, Ptr{CSerdError}))
   ccall(
     (:serd_reader_set_error_sink, serd),
-    Void,
-    (Ptr{Void}, Ptr{Void}, Any),
+    Cvoid,
+    (Ptr{Cvoid}, Ptr{Cvoid}, Any),
     reader.ptr, serd_error_sink_ptr, reader)
 end
-function serd_error_sink(handle::Ptr{Void}, error::Ptr{CSerdError})
+function serd_error_sink(handle::Ptr{Cvoid}, error::Ptr{CSerdError})
   obj = unsafe_pointer_to_objref(handle)::Union{SerdReader,SerdWriter}
   serd_status(if !isnull(obj.error_sink)
     # FIXME: Include error information besides status code.
     status = unsafe_load(Ptr{Cint}(error))
-    get(obj.error_sink)(status)
+    get(obj.error_sink)(SerdStatus(status))
   end)
 end
 
@@ -268,7 +277,7 @@ invalid characters. Setting strict will fail when parsing such files. An error
 is printed for invalid input in either case.
 """
 function serd_reader_set_strict(reader::SerdReader, strict::Bool)
-  ccall((:serd_reader_set_strict, serd), Void, (Ptr{Void}, Cbool),
+  ccall((:serd_reader_set_strict, serd), Cvoid, (Ptr{Cvoid}, Cbool),
         reader.ptr, strict)
 end
 
@@ -281,7 +290,7 @@ corrupt data. By setting a unique blank node prefix for each parsed file, this
 can be avoided, while preserving blank node names.
 """
 function serd_reader_add_blank_prefix(reader::SerdReader, prefix::String)
-  ccall((:serd_reader_add_blank_prefix, serd), Void, (Ptr{Void}, Cstring),
+  ccall((:serd_reader_add_blank_prefix, serd), Cvoid, (Ptr{Cvoid}, Cstring),
         reader.ptr, prefix)
 end
 
@@ -291,7 +300,7 @@ If this is set, the reader will emit quads with the graph set to the given node
 for any statements that are not in a named graph.
 """
 function serd_reader_set_default_graph(reader::SerdReader, graph::SerdNode)
-  ccall((:serd_reader_set_default_graph, serd), Void, (Ptr{Void}, Ref{CSerdNode}),
+  ccall((:serd_reader_set_default_graph, serd), Cvoid, (Ptr{Cvoid}, Ref{CSerdNode}),
         reader.ptr, c_serd_node(graph))
 end
 
@@ -301,7 +310,7 @@ function serd_reader_read_file(reader::SerdReader, uri::String)
   check_serd_status(ccall(
     (:serd_reader_read_file, serd),
     Cint,
-    (Ptr{Void}, Cstring),
+    (Ptr{Cvoid}, Cstring),
     reader.ptr, uri
   ))
 end
@@ -312,7 +321,7 @@ function serd_reader_read_string(reader::SerdReader, str::String)
   check_serd_status(ccall(
     (:serd_reader_read_string, serd),
     Cint,
-    (Ptr{Void}, Cstring),
+    (Ptr{Cvoid}, Cstring),
     reader.ptr, str
   ))
 end
@@ -322,9 +331,9 @@ end
 This function will be called automatically when the Julia Serd reader is
 garbage collected.
 """
-function serd_reader_free(reader::SerdReader)::Void
+function serd_reader_free(reader::SerdReader)::Nothing
   if reader.ptr != C_NULL
-    ccall((:serd_reader_free, serd), Void, (Ptr{Void},), reader.ptr)
+    ccall((:serd_reader_free, serd), Cvoid, (Ptr{Cvoid},), reader.ptr)
     reader.ptr = C_NULL
   end
   nothing
@@ -340,18 +349,19 @@ function serd_writer_new(syntax::SerdSyntax, style::SerdStyles, io::IO)::SerdWri
   serd_writer_new(syntax, style, sink)
 end
 function serd_writer_new(syntax::SerdSyntax, style::SerdStyles, sink::Function)::SerdWriter
-  serd_sink_ptr = cfunction(serd_writer_sink, Csize_t, (Ptr{Void}, Csize_t, Ptr{Void}))
-  env_ptr = ccall((:serd_env_new, serd), Ptr{Void}, (Ptr{CSerdNode},), C_NULL)
+  serd_sink_ptr = @cfunction(
+    $(CSerd.serd_writer_sink), Csize_t, (Ptr{Cvoid}, Csize_t, Ptr{Cvoid}))
+  env_ptr = ccall((:serd_env_new, serd), Ptr{Cvoid}, (Ptr{CSerdNode},), C_NULL)
   writer = SerdWriter(C_NULL, env_ptr, sink, nothing)
   writer.ptr = ccall(
     (:serd_writer_new, serd),
-    Ptr{Void},
-    (Cint, Cint, Ptr{Void}, Ptr{Void}, Ptr{Void}, Any),
+    Ptr{Cvoid},
+    (Cint, Cint, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Any),
     syntax, style, env_ptr, C_NULL, serd_sink_ptr, writer)
-  finalizer(writer, serd_writer_free)
+  finalizer(serd_writer_free, writer)
   return writer
 end
-function serd_writer_sink(buf::Ptr{Void}, len::Csize_t, handle::Ptr{Void})
+function serd_writer_sink(buf::Ptr{Cvoid}, len::Csize_t, handle::Ptr{Cvoid})
   writer = unsafe_pointer_to_objref(handle)::SerdWriter
   writer.sink(unsafe_string(Ptr{UInt8}(buf), len))
   return len
@@ -365,11 +375,11 @@ function is set, errors are printed to stderr.
 function serd_writer_set_error_sink(writer::SerdWriter, error_sink)
   writer.error_sink = error_sink
   serd_error_sink_ptr = isnull(writer.error_sink) ? C_NULL :
-    cfunction(serd_error_sink, Cint, (Ptr{Void}, Ptr{CSerdError}))
+    @cfunction($(CSerd.serd_error_sink), Cint, (Ptr{Cvoid}, Ptr{CSerdError}))
   ccall(
     (:serd_writer_set_error_sink, serd),
-    Void,
-    (Ptr{Void}, Ptr{Void}, Any),
+    Cvoid,
+    (Ptr{Cvoid}, Ptr{Cvoid}, Any),
     writer.ptr, serd_error_sink_ptr, writer)
 end
 
@@ -378,8 +388,8 @@ end
 function serd_writer_chop_blank_prefix(writer::SerdWriter, prefix::String)
   ccall(
     (:serd_writer_chop_blank_prefix, serd),
-    Void,
-    (Ptr{Void}, Cstring),
+    Cvoid,
+    (Ptr{Cvoid}, Cstring),
     writer.ptr, prefix)
 end
 
@@ -389,7 +399,7 @@ function serd_writer_set_base_uri(writer::SerdWriter, uri::SerdNode)
   check_serd_status(ccall(
     (:serd_writer_set_base_uri, serd),
     Cint,
-    (Ptr{Void}, Ref{CSerdNode}),
+    (Ptr{Cvoid}, Ref{CSerdNode}),
     writer.ptr, c_serd_node(uri)
   ))
 end
@@ -403,7 +413,7 @@ function serd_writer_set_root_uri(writer::SerdWriter, uri::SerdNode)
   check_serd_status(ccall(
     (:serd_writer_set_root_uri, serd),
     Cint,
-    (Ptr{Void}, Ref{CSerdNode}),
+    (Ptr{Cvoid}, Ref{CSerdNode}),
     writer.ptr, c_serd_node(uri)
   ))
 end
@@ -414,7 +424,7 @@ function serd_writer_set_prefix(writer::SerdWriter, name::SerdNode, uri::SerdNod
   check_serd_status(ccall(
     (:serd_writer_set_prefix, serd),
     Cint,
-    (Ptr{Void}, Ref{CSerdNode}, Ref{CSerdNode}),
+    (Ptr{Cvoid}, Ref{CSerdNode}, Ref{CSerdNode}),
     writer.ptr, c_serd_node(name), c_serd_node(uri)
   ))
 end
@@ -425,7 +435,7 @@ function serd_writer_write_statement(writer::SerdWriter, stmt::SerdStatement)
   check_serd_status(ccall(
     (:serd_writer_write_statement, serd),
     Cint,
-    (Ptr{Void}, Cint, Ptr{CSerdNode}, Ref{CSerdNode}, Ref{CSerdNode},
+    (Ptr{Cvoid}, Cint, Ptr{CSerdNode}, Ref{CSerdNode}, Ref{CSerdNode},
      Ref{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode}),
     writer.ptr,
     stmt.flags,
@@ -444,7 +454,7 @@ function serd_writer_end_anon(writer::SerdWriter, node::SerdNode)
   check_serd_status(ccall(
     (:serd_writer_end_anon, serd),
     Cint,
-    (Ptr{Void}, Ref{CSerdNode}),
+    (Ptr{Cvoid}, Ref{CSerdNode}),
     writer.ptr, c_serd_node(node)
   ))
 end
@@ -452,22 +462,22 @@ end
 """ Finish a write.
 """
 function serd_writer_finish(writer::SerdWriter)
-  ccall((:serd_writer_finish, serd), Void, (Ptr{Void},), writer.ptr)
+  ccall((:serd_writer_finish, serd), Cvoid, (Ptr{Cvoid},), writer.ptr)
 end
-close(writer::SerdWriter) = serd_writer_finish(writer)
+Base.close(writer::SerdWriter) = serd_writer_finish(writer)
 
 """ Free RDF writer. 
 
 This function will be called automatically when the Julia Serd writer is
 garbage collected.
 """
-function serd_writer_free(writer::SerdWriter)::Void
+function serd_writer_free(writer::SerdWriter)::Nothing
   if writer.ptr != C_NULL
-    ccall((:serd_writer_free, serd), Void, (Ptr{Void},), writer.ptr)
+    ccall((:serd_writer_free, serd), Cvoid, (Ptr{Cvoid},), writer.ptr)
     writer.ptr = C_NULL
   end
   if writer.env != C_NULL
-    ccall((:serd_env_free, serd), Void, (Ptr{Void},), writer.env)
+    ccall((:serd_env_free, serd), Cvoid, (Ptr{Cvoid},), writer.env)
     writer.env = C_NULL
   end
   nothing

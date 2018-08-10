@@ -1,5 +1,5 @@
 module TestSerd
-using Base.Test
+using Test
 using Serd, Serd.CSerd, Serd.RDF
 import Serd: to_serd, from_serd
 
