@@ -63,7 +63,7 @@ stmt = SerdStatement(
  SerdNode("bob", SERD_URI),
  SerdNode("age", SERD_URI),
  SerdNode("50", SERD_LITERAL),
- SerdNode(Serd.XSD_INTEGER, SERD_URI),
+ SerdNode(Serd.XSD_INT, SERD_URI),
  nothing,
 )
 @test to_serd(triple) == stmt

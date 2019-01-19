@@ -99,20 +99,34 @@ end
 # Constants
 ###########
 
+# https://www.w3.org/TR/rdf11-concepts/#section-Datatypes
 const NS_XSD = "http://www.w3.org/2001/XMLSchema#"
 const XSD_BOOLEAN = "$(NS_XSD)boolean"
 const XSD_INTEGER = "$(NS_XSD)integer"
 const XSD_DECIMAL = "$(NS_XSD)decimal"
+const XSD_INT = "$(NS_XSD)int"
+const XSD_SHORT = "$(NS_XSD)short"
+const XSD_LONG = "$(NS_XSD)long"
+const XSD_FLOAT = "$(NS_XSD)float"
 const XSD_DOUBLE = "$(NS_XSD)double"
 
 rdf_datatype(::Type{Bool}) = XSD_BOOLEAN
+rdf_datatype(::Type{Int16}) = XSD_SHORT
+rdf_datatype(::Type{Int32}) = XSD_INT
+rdf_datatype(::Type{Int64}) = XSD_INT # XXX: Technically, should be XSD_LONG
+rdf_datatype(::Type{Float32}) = XSD_FLOAT
+rdf_datatype(::Type{Float64}) = XSD_DOUBLE
 rdf_datatype(::Type{T}) where T <: Integer = XSD_INTEGER
 rdf_datatype(::Type{T}) where T <: Real = XSD_DECIMAL
 
 const julia_datatypes = Dict{String,Type}(
   XSD_BOOLEAN => Bool,
-  XSD_INTEGER => Int,
-  XSD_DECIMAL => Float64,
+  XSD_INTEGER => BigInt,
+  XSD_DECIMAL => BigFloat,
+  XSD_INT => Int, # or Int32, but better to use platform-specific Int type
+  XSD_SHORT => Int16,
+  XSD_LONG => Int64,
+  XSD_FLOAT => Float32,
   XSD_DOUBLE => Float64,
 )
 julia_datatype(datatype::String) = julia_datatypes[datatype]
