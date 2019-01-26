@@ -16,7 +16,9 @@ using .RDF
 """
 function read_rdf_file(path::String; kw...)::Vector{Statement}
   stmts = Statement[]
-  read_rdf_file(path, stmt -> push!(stmts, stmt); kw...)
+  read_rdf_file(path; kw...) do stmt
+    push!(stmts, stmt)
+  end
   stmts
 end
 
@@ -24,31 +26,33 @@ end
 """
 function read_rdf_string(text::String; kw...)::Vector{Statement}
   stmts = Statement[]
-  read_rdf_string(text, stmt -> push!(stmts, stmt); kw...)
+  read_rdf_string(text; kw...) do stmt
+    push!(stmts, stmt)
+  end
   stmts
 end
 
 """ Read RDF from file in SAX (event-driven) style.
 """
-function read_rdf_file(path::String, handler::Function;
+function read_rdf_file(handler::Function, path::String;
                        syntax::String="turtle")::Nothing
-  reader = rdf_reader(syntax, handler)
+  reader = rdf_reader(handler, syntax)
   serd_reader_read_file(reader, path)
   serd_reader_free(reader)
 end
 
 """ Read RDF from string in SAX (event-driven) style.
 """
-function read_rdf_string(text::String, handler::Function;
+function read_rdf_string(handler::Function, text::String;
                          syntax::String="turtle")::Nothing
-  reader = rdf_reader(syntax, handler)
+  reader = rdf_reader(handler, syntax)
   serd_reader_read_string(reader, text)
   serd_reader_free(reader)
 end
 
 """ Create RDF reader with given event handler.
 """
-function rdf_reader(syntax::String, handler::Function)::SerdReader
+function rdf_reader(handler::Function, syntax::String)::SerdReader
   base_sink(uri::SerdNode) = handler(BaseURI(uri.value))
   prefix_sink(name::SerdNode, uri::SerdNode) = handler(Prefix(name.value, uri.value))
   statement_sink(stmt::SerdStatement) = handler(from_serd(stmt))
@@ -72,7 +76,7 @@ function write_rdf(io::IO, stmts::Vector{<:Statement};
   close(writer)
 end
 function write_rdf(stmts::Vector{<:Statement}; kw...)
-  write_rdf(STDOUT, stmts; kw...)
+  write_rdf(stdout, stmts; kw...)
 end
 
 """ Write a single RDF statement.
