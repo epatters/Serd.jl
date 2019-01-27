@@ -1,5 +1,5 @@
 name = "Serd"
-uuid = "450495b8-9c41-11e8-108b-bf40c112a898"
+uuid = "42699a24-3520-5f41-a549-6a478ed667c2"
 license = "BSD2"
 authors = ["Evan Patterson <ejpatters@gmail.com>"]
 version = "0.1.0"
