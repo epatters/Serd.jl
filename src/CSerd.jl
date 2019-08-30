@@ -15,7 +15,7 @@ export SerdException, SerdNode, SerdStatement, SerdStatementFlags, SerdStyles,
 include("../deps/deps.jl")
 
 using AutoHashEquals
-using Nullables
+using Compat
 
 """ Export an enum and all its values.
 """
@@ -98,28 +98,28 @@ end
 
 @auto_hash_equals struct SerdStatement
   flags::SerdStatementFlags
-  graph::Nullable{SerdNode}
+  graph::Union{SerdNode,Nothing}
   subject::SerdNode
   predicate::SerdNode
   object::SerdNode
-  object_datatype::Nullable{SerdNode}
-  object_lang::Nullable{SerdNode}
+  object_datatype::Union{SerdNode,Nothing}
+  object_lang::Union{SerdNode,Nothing}
 end
 
 mutable struct SerdReader
   ptr::Ptr{Cvoid}
-  base_sink::Nullable{Function}
-  prefix_sink::Nullable{Function}
-  statement_sink::Nullable{Function}
-  end_sink::Nullable{Function}
-  error_sink::Nullable{Function}
+  base_sink::Union{Function,Nothing}
+  prefix_sink::Union{Function,Nothing}
+  statement_sink::Union{Function,Nothing}
+  end_sink::Union{Function,Nothing}
+  error_sink::Union{Function,Nothing}
 end
 
 mutable struct SerdWriter
   ptr::Ptr{Cvoid}
   env::Ptr{Cvoid}
   sink::Function
-  error_sink::Nullable{Function}
+  error_sink::Union{Function,Nothing}
 end
 
 mutable struct CSerdNode
@@ -148,24 +148,24 @@ function c_serd_node(node::SerdNode)::CSerdNode
   ccall((:serd_node_from_string, serd), CSerdNode, (Cint, Cstring),
         Cint(node.typ), node.value)
 end
-function c_serd_node(node::Nullable{SerdNode})::Ptr{CSerdNode}
-  isnull(node) ? C_NULL : pointer_from_objref(c_serd_node(get(node)))
+function c_maybe_serd_node(node::Union{SerdNode,Nothing})::Ptr{CSerdNode}
+  isnothing(node) ? C_NULL : pointer_from_objref(c_serd_node(node))
 end
 
 """ Convert Serd node from C struct to Julia struct.
 """
-function unsafe_serd_node(ptr::Ptr{CSerdNode})::Nullable{SerdNode}
+function unsafe_serd_node(ptr::Ptr{CSerdNode})::Union{SerdNode,Nothing}
   if ptr == C_NULL
-    Nullable{SerdNode}()
+    nothing
   else
     typ = unsafe_load(Ptr{Cint}(ptr + fieldoffset(CSerdNode,5)))
     if typ == SERD_NOTHING
-      Nullable{SerdNode}()
+      nothing
     else
       n_bytes = unsafe_load(Ptr{Csize_t}(ptr + fieldoffset(CSerdNode,2)))
       value_ptr = unsafe_load(Ptr{Ptr{UInt8}}(ptr))
       value = unsafe_string(value_ptr, n_bytes)
-      Nullable(SerdNode(value, SerdType(typ)))
+      SerdNode(value, SerdType(typ))
     end
   end
 end
@@ -211,16 +211,14 @@ function serd_reader_new(syntax::SerdSyntax, base_sink, prefix_sink,
 end
 function serd_base_sink(handle::Ptr{Cvoid}, uri::Ptr{CSerdNode})
   reader = unsafe_pointer_to_objref(handle)::SerdReader
-  serd_status(if !isnull(reader.base_sink)
-    get(reader.base_sink)(get(unsafe_serd_node(uri)))
+  serd_status(if !isnothing(reader.base_sink)
+    reader.base_sink(unsafe_serd_node(uri))
   end)
 end
 function serd_prefix_sink(handle::Ptr{Cvoid}, name::Ptr{CSerdNode}, uri::Ptr{CSerdNode})
   reader = unsafe_pointer_to_objref(handle)::SerdReader
-  serd_status(if !isnull(reader.prefix_sink)
-    get(reader.prefix_sink)(
-      get(unsafe_serd_node(name)),
-      get(unsafe_serd_node(uri)))
+  serd_status(if !isnothing(reader.prefix_sink)
+    reader.prefix_sink(unsafe_serd_node(name), unsafe_serd_node(uri))
   end)
 end
 function serd_statement_sink(
@@ -229,21 +227,21 @@ function serd_statement_sink(
     object_datatype::Ptr{CSerdNode}, object_lang::Ptr{CSerdNode}
   )
   reader = unsafe_pointer_to_objref(handle)::SerdReader
-  serd_status(if !isnull(reader.statement_sink)
-    get(reader.statement_sink)(SerdStatement(
+  serd_status(if !isnothing(reader.statement_sink)
+    reader.statement_sink(SerdStatement(
       flags,
       unsafe_serd_node(graph),
-      get(unsafe_serd_node(subject)),
-      get(unsafe_serd_node(predicate)),
-      get(unsafe_serd_node(object)),
+      unsafe_serd_node(subject),
+      unsafe_serd_node(predicate),
+      unsafe_serd_node(object),
       unsafe_serd_node(object_datatype),
       unsafe_serd_node(object_lang)))
   end)
 end
 function serd_end_sink(handle::Ptr{Cvoid}, node::Ptr{CSerdNode})
   reader = unsafe_pointer_to_objref(handle)::SerdReader
-  serd_status(if !isnull(reader.end_sink)
-    get(reader.end_sink)(get(unsafe_serd_node(node)))
+  serd_status(if !isnothing(reader.end_sink)
+    reader.end_sink(unsafe_serd_node(node))
   end)
 end
 
@@ -253,7 +251,7 @@ If no error function is set, errors are printed to stderr in GCC style.
 """
 function serd_reader_set_error_sink(reader::SerdReader, error_sink)
   reader.error_sink = error_sink
-  serd_error_sink_ptr = isnull(reader.error_sink) ? C_NULL :
+  serd_error_sink_ptr = isnothing(reader.error_sink) ? C_NULL :
     @cfunction($(CSerd.serd_error_sink), Cint, (Ptr{Cvoid}, Ptr{CSerdError}))
   ccall(
     (:serd_reader_set_error_sink, serd),
@@ -263,10 +261,10 @@ function serd_reader_set_error_sink(reader::SerdReader, error_sink)
 end
 function serd_error_sink(handle::Ptr{Cvoid}, error::Ptr{CSerdError})
   obj = unsafe_pointer_to_objref(handle)::Union{SerdReader,SerdWriter}
-  serd_status(if !isnull(obj.error_sink)
+  serd_status(if !isnothing(obj.error_sink)
     # FIXME: Include error information besides status code.
     status = unsafe_load(Ptr{Cint}(error))
-    get(obj.error_sink)(SerdStatus(status))
+    obj.error_sink(SerdStatus(status))
   end)
 end
 
@@ -374,7 +372,7 @@ function is set, errors are printed to stderr.
 """
 function serd_writer_set_error_sink(writer::SerdWriter, error_sink)
   writer.error_sink = error_sink
-  serd_error_sink_ptr = isnull(writer.error_sink) ? C_NULL :
+  serd_error_sink_ptr = isnothing(writer.error_sink) ? C_NULL :
     @cfunction($(CSerd.serd_error_sink), Cint, (Ptr{Cvoid}, Ptr{CSerdError}))
   ccall(
     (:serd_writer_set_error_sink, serd),
@@ -439,12 +437,12 @@ function serd_writer_write_statement(writer::SerdWriter, stmt::SerdStatement)
      Ref{CSerdNode}, Ptr{CSerdNode}, Ptr{CSerdNode}),
     writer.ptr,
     stmt.flags,
-    c_serd_node(stmt.graph),
+    c_maybe_serd_node(stmt.graph),
     c_serd_node(stmt.subject),
     c_serd_node(stmt.predicate),
     c_serd_node(stmt.object),
-    c_serd_node(stmt.object_datatype),
-    c_serd_node(stmt.object_lang)
+    c_maybe_serd_node(stmt.object_datatype),
+    c_maybe_serd_node(stmt.object_lang)
   ))
 end
 

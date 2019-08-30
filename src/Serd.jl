@@ -2,7 +2,7 @@ module Serd
 export RDF, read_rdf_file, read_rdf_string, write_rdf, write_rdf_statement,
   rdf_writer
 
-using Nullables
+using Compat
 
 include("CSerd.jl")
 include("RDF.jl")
@@ -149,14 +149,14 @@ serd_syntax(syntax::String) = serd_syntaxes[lowercase(syntax)]
 to_serd(node::ResourceURI) = SerdNode(node.uri, SERD_URI)
 to_serd(node::ResourceCURIE) = SerdNode("$(node.prefix):$(node.name)", SERD_CURIE)
 to_serd(node::Blank) = SerdNode(node.name, SERD_BLANK)
-to_serd(stmt::Triple) = to_serd(
-  Nullable{Node}(), stmt.subject, stmt.predicate, stmt.object)
-to_serd(stmt::Quad) = to_serd(
-  Nullable(stmt.graph), stmt.subject, stmt.predicate, stmt.object)
+to_serd(stmt::Triple) = to_serd(nothing, stmt.subject, stmt.predicate, stmt.object)
+to_serd(stmt::Quad) = to_serd(stmt.graph, stmt.subject, stmt.predicate, stmt.object)
   
-function to_serd(graph::Nullable{T} where T <: Node,
+function to_serd(graph::Union{<:Node,Nothing},
                  subject::Node, predicate::Node, object::Node)
-  graph = isnull(graph) ? Nullable{SerdNode}() : to_serd(get(graph))
+  if !isnothing(graph)
+    graph = to_serd(graph)
+  end
   subject = to_serd(subject)
   predicate = to_serd(predicate)
   if isa(object, Literal)
@@ -193,23 +193,23 @@ function from_serd(stmt::SerdStatement)::Statement
   subject = from_serd(stmt.subject)
   predicate = from_serd(stmt.predicate)
   object = if stmt.object.typ == SERD_LITERAL
-    if isnull(stmt.object_datatype)
-      if isnull(stmt.object_lang)
+    if isnothing(stmt.object_datatype)
+      if isnothing(stmt.object_lang)
         Literal(stmt.object.value)
       else
-        Literal(stmt.object.value, get(stmt.object_lang).value)
+        Literal(stmt.object.value, stmt.object_lang.value)
       end
     else
-      typ = julia_datatype(get(stmt.object_datatype).value)
+      typ = julia_datatype(stmt.object_datatype.value)
       Literal(parse(typ, stmt.object.value))
     end
   else
     from_serd(stmt.object)
   end
-  if isnull(stmt.graph)
+  if isnothing(stmt.graph)
     Triple(subject, predicate, object)
   else
-    Quad(subject, predicate, object, from_serd(get(stmt.graph)))
+    Quad(subject, predicate, object, from_serd(stmt.graph))
   end
 end
 
