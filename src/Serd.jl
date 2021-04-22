@@ -2,8 +2,6 @@ module Serd
 export RDF, read_rdf_file, read_rdf_string, write_rdf, write_rdf_statement,
   rdf_writer
 
-using Compat
-
 include("CSerd.jl")
 include("RDF.jl")
 using .CSerd

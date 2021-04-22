@@ -5,7 +5,6 @@ export Expression, Statement, Node, Edge, BaseURI, Prefix,
   Resource, ResourceURI, ResourceCURIE, Literal, Blank, Triple, Quad
 
 using AutoHashEquals
-using Compat
 
 # Data types
 ############

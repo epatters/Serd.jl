@@ -2,10 +2,10 @@ module TurtleEx1
 using Serd, Serd.CSerd, Serd.RDF
 
 # https://www.w3.org/TeamSubmission/turtle/#sec-examples
-const turtle_path = "data/turtle_ex1.ttl"
-const turtle_alt_path = "data/turtle_ex1_alt.ttl" # roundtripped through Serd
+const turtle_path = joinpath(@__DIR__, "turtle_ex1.ttl")
+const turtle_alt_path = joinpath(@__DIR__, "turtle_ex1_alt.ttl")
 const turtle = read(turtle_path, String)
-const turtle_alt = read(turtle_alt_path, String)
+const turtle_alt = read(turtle_alt_path, String) # Round-tripped through Serd
 
 const statements = Statement[
   Prefix("rdf"),
