@@ -1,6 +1,6 @@
 # Serd.jl
 
-[![Build Status](https://travis-ci.org/epatters/Serd.jl.svg?branch=master)](https://travis-ci.org/epatters/Serd.jl)
+[![Build Status](https://github.com/epatters/Serd.jl/workflows/Tests/badge.svg)](https://github.com/epatters/Serd.jl/actions?query=workflow%3ATests)
 
 This package provides Julia bindings to [Serd](https://drobilla.net/software/serd),
 a C library for serializing [RDF](http://www.w3.org/TR/rdf11-primer/) data in 
