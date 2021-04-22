@@ -11,11 +11,12 @@ export SerdException, SerdNode, SerdStatement, SerdStatementFlags, SerdStyles,
   serd_writer_set_base_uri, serd_writer_set_root_uri,
   serd_writer_set_prefix, serd_writer_write_statement, serd_writer_finish
   
-# Reference to Serd library.
-include("../deps/deps.jl")
-
 using AutoHashEquals
-using Compat
+
+import Serd_jll
+const serd = Serd_jll.libserd
+
+const Cbool = UInt8
 
 """ Export an enum and all its values.
 """
@@ -24,8 +25,6 @@ macro export_enum(name::Symbol)
                      (Symbol(inst) for inst in instances($name))...)))
   esc(Expr(:toplevel, expr))
 end
-
-const Cbool = UInt8
 
 # Data types
 ############
