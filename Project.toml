@@ -1,6 +1,6 @@
 name = "Serd"
 uuid = "42699a24-3520-5f41-a549-6a478ed667c2"
-license = "BSD2"
+license = "MIT"
 authors = ["Evan Patterson <evan@epatters.org>"]
 version = "0.2.0"
 
