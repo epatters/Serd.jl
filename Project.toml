@@ -10,6 +10,6 @@ Serd_jll = "0d4e85e1-a563-5338-9f64-3e4dc8b67009"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-AutoHashEquals = "0.2"
+AutoHashEquals = "0.2, 2"
 Serd_jll = "0.30.11"
 julia = "1.6"
